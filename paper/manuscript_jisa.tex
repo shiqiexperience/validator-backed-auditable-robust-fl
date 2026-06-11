@@ -361,6 +361,10 @@ The current experiments support the claim that the proposed method is auditable 
 
 Future work should focus on adding stronger recent baselines, improving the proposed method's CIFAR-10 clean accuracy without sacrificing auditability, and extending the audit layer to a realistic blockchain or permissioned ledger implementation.
 
+\section{Conclusion}
+
+This paper presents a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. By combining multi-signal anomaly scoring, hash-chain-backed reputation, and dynamic weighted aggregation, the framework makes aggregation decisions reconstructable while maintaining competitive robustness in heterogeneous FL environments. The experiments show that the method prevents catastrophic poisoning failures and maintains low ASR, but the results also show that norm filtering and Trimmed Mean remain strong baselines. The contribution should therefore be understood as auditable and competitive robustness rather than universal clean-accuracy dominance.
+
 \section{Declarations}
 
 \subsection{Data and Code Availability}
@@ -382,10 +386,6 @@ This study uses public benchmark datasets and does not involve human subjects or
 \subsection{Declaration of Generative AI and AI-Assisted Technologies}
 
 During the preparation of this work, the author used OpenAI ChatGPT/Codex to support manuscript organization, language editing, consistency checking, and preparation of submission materials. After using these tools, the author reviewed and edited the content as needed and takes full responsibility for the content of the article.
-
-\section{Conclusion}
-
-This paper presents a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. By combining multi-signal anomaly scoring, hash-chain-backed reputation, and dynamic weighted aggregation, the framework makes aggregation decisions reconstructable while maintaining competitive robustness in heterogeneous FL environments. The experiments show that the method prevents catastrophic poisoning failures and maintains low ASR, but the results also show that norm filtering and Trimmed Mean remain strong baselines. The contribution should therefore be understood as auditable and competitive robustness rather than universal clean-accuracy dominance.
 
 \bibliographystyle{elsarticle-harv}
 \bibliography{references}
