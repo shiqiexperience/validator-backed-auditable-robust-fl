@@ -1,0 +1,11 @@
+client_id,is_malicious,attack_type,mean_update_norm,mean_aggregation_weight,zero_weight_rounds,rounds
+0,1,sign_flip,3.157034,0.0,80,80
+1,1,sign_flip,4.060711,0.0,80,80
+2,0,none,0.282345,0.493503,0,80
+3,0,none,0.433394,0.380854,0,80
+4,0,none,0.680861,0.088007,0,80
+5,0,none,0.443087,0.436694,0,80
+6,0,none,0.664312,0.0982,11,80
+7,0,none,0.398617,0.428841,0,80
+8,0,none,0.425007,0.338538,0,80
+9,0,none,0.64353,0.0,80,80

@@ -1,0 +1,13 @@
+dataset,aggregation,runs,mean_round_time_sec,mean_defense_time_sec,mean_audit_log_kb,mean_rounds
+CIFAR10,fedavg,9,23.9063,0.038162,260.37,81.7
+CIFAR10,krum,9,18.4248,0.080671,386.1,120.0
+CIFAR10,median,9,18.01,0.007161,382.34,120.0
+CIFAR10,norm_filter,9,18.5498,0.055038,522.76,120.0
+CIFAR10,proposed,9,18.7188,0.079741,771.21,120.0
+CIFAR10,trimmed_mean,9,18.5703,0.015352,383.04,120.0
+FashionMNIST,fedavg,18,2.3105,0.002986,176.19,55.4
+FashionMNIST,krum,18,1.4125,0.016743,256.64,80.0
+FashionMNIST,median,18,1.4133,0.000642,254.26,80.0
+FashionMNIST,norm_filter,18,1.4341,0.005946,349.28,80.0
+FashionMNIST,proposed,18,1.788,0.017837,513.59,80.0
+FashionMNIST,trimmed_mean,18,1.4139,0.001482,254.72,80.0

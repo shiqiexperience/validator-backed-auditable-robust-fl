@@ -1,0 +1,393 @@
+\documentclass[preprint,authoryear,12pt]{elsarticle}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{natbib}
+
+\graphicspath{{../experiments_b_journal/paper_figures/}{../experiments_b_journal/audit_case/fashion_noniid_signflip_proposed_s42/}}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Hash-Chain Auditable Reputation-Aware Robust Aggregation for Federated Learning Against Poisoning Attacks}
+
+\author[aff1]{Shiqi Huang\corref{cor1}}
+\ead{shiqihuang666@gmail.com}
+\address[aff1]{Faculty of Computational Mathematics and Cybernetics, Lomonosov Moscow State University, Moscow, Russia}
+\cortext[cor1]{Corresponding author.}
+
+\begin{abstract}
+Federated learning enables collaborative training without centralizing private data, but malicious clients can poison model updates to degrade clean accuracy or implant backdoors. Existing Byzantine-robust aggregation rules mitigate many outliers, yet adaptive poisoning and Non-IID client data can weaken static filtering. For security-sensitive FL, aggregation decisions should also be auditable so that operators can reconstruct why a client update was accepted, down-weighted, or rejected. This paper proposes a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. The method scores each client update using magnitude deviation, directional consistency, and historical stability, combines the score with a smoothed reputation value, and performs dynamic weighted aggregation. Each round writes anomaly evidence, reputation changes, aggregation weights, model hashes, and global metrics to a tamper-evident hash chain. Experiments on Fashion-MNIST and CIFAR-10 cover IID and Dirichlet Non-IID settings under sign-flip, adaptive-scaling, and backdoor attacks. The proposed method prevents catastrophic poisoning failures and maintains low attack success rate (ASR), while its clean accuracy remains competitive with, but not uniformly higher than, strong norm-filtering and trimmed-mean baselines.
+\end{abstract}
+
+\begin{keyword}
+federated learning \sep poisoning attack \sep robust aggregation \sep hash-chain audit \sep reputation-aware defense \sep Byzantine robustness
+\end{keyword}
+
+\end{frontmatter}
+
+\section{Introduction}
+
+Federated learning (FL) allows multiple clients to collaboratively train a global model while keeping raw data local \citep{mcmahan2017fedavg,kairouz2021advances}. This paradigm is attractive for privacy-sensitive scenarios such as mobile computing, healthcare, industrial Internet of Things, and edge intelligence, and has motivated both production-scale system designs and heterogeneity-aware optimization methods \citep{bonawitz2019scale,li2020fedprox,karimireddy2020scaffold,reddi2021fedopt}. From an information-security perspective, however, FL replaces centralized data collection with a new trust boundary: the server must aggregate updates from clients that may be faulty, compromised, or strategically malicious.
+
+This trust boundary enables poisoning attacks. Malicious clients can manipulate uploaded model updates to degrade global accuracy, trigger targeted misclassification, or bypass defenses that assume poisoned updates are simple outliers \citep{fang2020local,bagdasaryan2020backdoor,baruch2019little,cao2021fltrust}. Classical robust aggregation rules, including Krum, coordinate-wise Median, Trimmed Mean, Bulyan, and geometric median, were designed to tolerate Byzantine clients by filtering or reducing the effect of abnormal updates \citep{blanchard2017krum,yin2018byzantine,elmhamdi2018bulyan,pillutla2022rfa}. In Non-IID settings, the problem becomes harder because honest client updates may naturally differ from one another. This makes one-shot anomaly filtering vulnerable to both adaptive evasion and false rejection of honest clients.
+
+Robustness alone is not sufficient for security-sensitive FL. When a client update is rejected or assigned a near-zero aggregation weight, the system should preserve the evidence behind that decision so that operators can reconstruct the training process, diagnose attacks, and audit whether benign heterogeneous clients were unfairly suppressed. Blockchain-assisted FL has been proposed to improve transparency, incentive compatibility, privacy-oriented data sharing, and accountability \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,zhang2024bitfl,ren2024bpfl,awan2022blockchainflsurvey}. Nevertheless, simply recording model hashes or training metrics on chain does not directly improve robustness. A more useful role for the ledger layer is to maintain auditable client behavior histories and reputation records that influence future aggregation decisions.
+
+This requirement is practical rather than merely diagnostic. In multi-party FL deployments such as cross-institutional analytics, industrial Internet of Things, and collaborative edge intelligence, operators may need to investigate security incidents, justify client exclusion, and demonstrate that model-governance rules were applied consistently. A defense that only outputs a final aggregate cannot support this type of accountability.
+
+To address these issues, this paper proposes a hash-chain auditable adaptive robust aggregation framework. The key idea is to evaluate client updates through multiple signals and maintain persistent reputation records through a tamper-evident audit chain. Instead of permanently accepting or rejecting clients using a static threshold, the framework assigns dynamic aggregation weights based on both current anomaly scores and historical trust. This design aims to improve robustness against adaptive poisoning while keeping aggregation decisions reconstructable in heterogeneous FL environments.
+
+The main contributions are:
+\begin{enumerate}
+  \item We formulate a multi-signal anomaly score for FL updates that combines norm deviation, directional consistency, and history stability under heterogeneous client data.
+  \item We design a hash-chain-backed reputation and audit mechanism that records the evidence behind aggregation weights, rather than logging only final model states.
+  \item We introduce a dynamic weighted aggregation rule that couples current anomaly evidence with historical reputation to reduce malicious influence while retaining useful benign Non-IID updates.
+  \item We provide a reproducible benchmark covering IID and Non-IID data, multiple poisoning attacks, three random seeds for the main Fashion-MNIST and CIFAR-10 Non-IID settings, malicious-ratio sensitivity, audit reconstruction, and overhead measurement.
+\end{enumerate}
+
+\section{Related Work}
+
+\subsection{Federated Learning Under Heterogeneity}
+
+FedAvg established a communication-efficient training paradigm for decentralized data \citep{mcmahan2017fedavg}, and subsequent work has clarified that FL differs from conventional distributed optimization because clients are statistically and systemically heterogeneous \citep{kairouz2021advances}. FedProx addresses client drift through a proximal regularizer \citep{li2020fedprox}, SCAFFOLD reduces drift through control variates \citep{karimireddy2020scaffold}, and adaptive federated optimization improves server-side update dynamics \citep{reddi2021fedopt}. These optimization methods are not poisoning defenses, but they motivate the experimental emphasis on Non-IID data: under heterogeneous client distributions, benign updates may naturally deviate from the global mean. A robust security mechanism therefore needs to distinguish malicious deviation from legitimate heterogeneity.
+
+\subsection{Poisoning and Backdoor Attacks}
+
+Poisoning attacks in FL can be categorized into data poisoning and model poisoning \citep{nist2024aml,mothukuri2021survey}. Data poisoning manipulates local training data or labels, while model poisoning directly modifies the uploaded model update. Backdoor attacks aim to preserve clean accuracy while causing targeted misclassification when a trigger appears, and distributed backdoor attacks further exploit the multi-client structure of FL \citep{bagdasaryan2020backdoor,xie2020dba,nguyen2022flame}. Attack studies on Byzantine-robust FL emphasize adaptive adversaries that understand the aggregation rule and shape poisoned updates to evade detection \citep{fang2020local,baruch2019little,wang2025adaaggrl}. Sybil-style poisoning also shows that persistent client behavior and update similarity can be useful security signals \citep{fung2020foolsgold}.
+
+\subsection{Robust Aggregation}
+
+Robust aggregation methods such as Krum, Median, Trimmed Mean, Bulyan, and geometric median reduce the impact of abnormal client updates \citep{blanchard2017krum,yin2018byzantine,elmhamdi2018bulyan,pillutla2022rfa}. Trust-based approaches such as FLTrust use a trusted reference update to compute client trust scores \citep{cao2021fltrust}. Backdoor-oriented defenses such as FLAME consider clustering, clipping, and noise injection \citep{nguyen2022flame}. Recent adaptive defenses further explore reinforcement-learning-based aggregation and history-aware heterogeneous FL recovery \citep{wang2025adaaggrl,wang2025fedhan}. These methods motivate stronger experimental baselines and show that single-signal defenses are often insufficient.
+
+\subsection{Trust and Reputation Signals}
+
+Trust and reputation mechanisms are attractive in FL because poisoning behavior unfolds over rounds rather than in a single isolated upload. FLTrust uses a server-side root dataset to construct a trusted reference direction \citep{cao2021fltrust}, while FoolsGold uses update similarity to reduce the influence of Sybil-style attackers \citep{fung2020foolsgold}. Blockchain-assisted FL systems also frequently incorporate incentives or punishment records to discourage low-quality or malicious updates \citep{lu2020blockchain,zhang2024bitfl,ren2024bpfl}. However, trust signals must be handled carefully under Non-IID data: a benign client with rare classes may appear directionally unusual, while an adaptive attacker may keep update norms close to benign statistics. This motivates reputation updates that combine current anomaly evidence with historical behavior rather than relying on a single trust cue.
+
+\subsection{Blockchain-Assisted and Hash-Chain Auditable Federated Learning}
+
+Blockchain can provide tamper-resistant logging, decentralized coordination, incentives, and accountability. Recent blockchain-assisted FL studies increasingly connect ledger records with secure aggregation, industrial data sharing, incentive mechanisms, and malicious-client punishment \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,zhang2024bitfl,ren2024bpfl,awan2022blockchainflsurvey}. The present work focuses on the auditable logging and reputation-history component of that broader design space. In particular, it studies whether hash-linked evidence about past client behavior can be coupled with adaptive robust aggregation, a question that remains underexplored in many blockchain-assisted FL systems.
+
+\subsection{Research Gap}
+
+Existing robust aggregation rules mainly optimize the current-round aggregate, while ledger-assisted FL often treats the ledger as a storage, incentive, or coordination layer. These two lines of work are complementary but not tightly coupled. A rejected or down-weighted update should be explainable after training: the system should record which anomaly signals were observed, how reputation changed, and how those signals affected the final aggregation weight. The gap addressed in this paper is therefore not a new standalone norm filter and not a full blockchain deployment. The contribution is the coupling of multi-signal anomaly scoring, persistent reputation-aware weighting, and hash-chain audit records so that robustness decisions are both operational during training and reconstructable afterward.
+
+\section{Threat Model and Problem Definition}
+
+We consider an FL system with one aggregation server and $N$ clients. At communication round $t$, the server broadcasts the current global model parameters $w_t$. A selected client $i$ trains locally on its private dataset $D_i$ and returns a local model $w_{t,i}$ or, equivalently, an update vector
+\begin{equation}
+u_{t,i}=\mathrm{vec}(w_{t,i}-w_t),
+\end{equation}
+where $\mathrm{vec}(\cdot)$ denotes concatenation of all floating-point model parameters. Client $i$ has $n_i=|D_i|$ training samples. A subset $\mathcal{M}_t$ of clients may be malicious. Malicious clients can poison their uploaded model updates, collude with each other, and adapt update magnitudes to evade simple norm-based thresholds. The server can evaluate update metadata and maintain an auditable chain, but it does not access clients' raw data.
+
+The defense objective is to compute aggregation weights $a_{t,i}$ such that malicious influence is reduced while benign updates remain useful under Non-IID data. The aggregated model is
+\begin{equation}
+\beta_{t,i}=\frac{a_{t,i}n_i}{\sum_j a_{t,j}n_j}, \qquad
+w_{t+1}=\sum_i \beta_{t,i}w_{t,i}.
+\end{equation}
+When $a_{t,i}=0$, client $i$ has no influence on the round. When all weights become zero, the implementation falls back to the lowest-anomaly fraction of clients to avoid a stalled round. In addition to utility and robustness, the system must preserve an auditable record of the evidence and decision that produced each $a_{t,i}$.
+
+\section{Proposed Method}
+
+\subsection{Overview}
+
+Each communication round contains five steps. The server broadcasts the current global model. Clients train locally and submit model updates. The server computes anomaly signals for each update. Reputation-aware aggregation weights are computed. Finally, the server aggregates updates and records the round into the audit chain.
+
+\subsection{Multi-Signal Anomaly Score}
+
+For each round, the server computes the update norm
+\begin{equation}
+r_{t,i}=\lVert u_{t,i}\rVert_2.
+\end{equation}
+The robust norm center is the median update norm:
+\begin{equation}
+c_t=\mathrm{median}_i(r_{t,i}).
+\end{equation}
+The robust scale is the median absolute deviation (MAD):
+\begin{equation}
+s_t=\max\{\mathrm{median}_i(|r_{t,i}-c_t|),\epsilon\},
+\end{equation}
+where $\epsilon$ is a small constant used to avoid division by zero. The one-sided norm anomaly score is
+\begin{equation}
+z^n_{t,i}=\max\left(0,\frac{r_{t,i}-c_t}{s_t}\right).
+\end{equation}
+
+The reference update direction is the mean update
+\begin{equation}
+\bar{u}_t=\frac{1}{N}\sum_i u_{t,i}.
+\end{equation}
+The directional consistency score uses cosine similarity:
+\begin{equation}
+d_{t,i}=\cos(u_{t,i},\bar{u}_t), \qquad
+z^d_{t,i}=\max(0,1-d_{t,i}).
+\end{equation}
+If client $i$ participated in the previous round with stored update $u_{t-1,i}$, the history instability score is
+\begin{equation}
+z^h_{t,i}=\max(0,1-\cos(u_{t,i},u_{t-1,i})).
+\end{equation}
+For a new client without history, $z^h_{t,i}=0$. The final anomaly score is
+\begin{equation}
+A_{t,i}=0.45z^n_{t,i}+0.35z^d_{t,i}+0.20z^h_{t,i}.
+\end{equation}
+
+\subsection{Hash-Chain-Backed Reputation}
+
+Each client has a reputation value $R_{t,i}$ initialized as $R_{0,i}=1$. After computing anomaly score $A_{t,i}$, reputation is updated by exponential smoothing:
+\begin{equation}
+R_{t+1,i}=\mathrm{clip}\left(0.85R_{t,i}+0.15\exp(-A_{t,i}),0.05,1.5\right).
+\end{equation}
+The clipping interval prevents permanent reputation collapse. It also bounds the maximum advantage of a client with consistently benign behavior.
+
+Let $P_t$ denote the round payload containing model hash, metrics, client metadata, anomaly scores, reputation values, and aggregation weights. Each audit block is
+\begin{equation}
+B_t=(t,\mathrm{timestamp}_t,h_{t-1},P_t), \qquad
+h_t=\mathrm{SHA256}(\mathrm{canonical\_json}(B_t)).
+\end{equation}
+The next block stores $h_t$ as its previous hash. Verification checks both hash correctness and hash linkage from the genesis hash to the final block.
+
+The implemented audit layer is a tamper-evident hash chain that models the audit component of a blockchain-assisted FL system. It does not implement consensus, validator incentives, smart-contract execution, or gas accounting. This design isolates the core scientific question of whether aggregation decisions can be made reconstructable and verifiable.
+
+\subsection{Dynamic Weighted Aggregation}
+
+The server first applies hard-rejection rules. Client $i$ is hard rejected if any of the following conditions holds:
+\begin{equation}
+A_{t,i}>\tau_A,\qquad
+z^n_{t,i}>\tau_n \ \mathrm{and}\ d_{t,i}<0,\qquad
+d_{t,i}<\tau_d.
+\end{equation}
+The implemented default parameters are $\tau_A=4.0$, $\tau_n=2.5$, and $\tau_d=-0.4$. If a client is not hard rejected, its raw aggregation weight is
+\begin{equation}
+a_{t,i}=\max(a_{\min},R_{t+1,i}\exp(-\gamma A_{t,i})),
+\end{equation}
+where $a_{\min}=0$ and $\gamma=1.2$ in the formal experiments. If the hard-rejection condition is true, $a_{t,i}=0$. The final normalized aggregation coefficient is sample-size weighted according to Eq. (2). If all raw weights are zero, the implementation selects the lowest-anomaly 50\% of clients as a fallback set and assigns them exponentially decayed weights.
+
+\subsection{Security and Audit Interpretation}
+
+The proposed framework provides tamper-evident decision traceability rather than a cryptographic proof that every malicious client is detected. For each round, the audit payload records the evidence used by the aggregation rule: update hashes, anomaly scores, reputation values before and after smoothing, hard-rejection flags, raw aggregation weights, normalized aggregation coefficients, and global evaluation metrics. Because the block hash is computed over a canonical representation of this payload and linked to the previous block hash, any post-hoc modification of a past decision changes the corresponding block hash and breaks the subsequent chain linkage.
+
+The audit record supports three verification tasks. First, an auditor can recompute the hash chain to check whether the recorded training history has been modified. Second, given the stored round payload, the auditor can reconstruct why a client received zero, reduced, or full aggregation influence. Third, the auditor can compare per-client weight histories with attack labels in controlled experiments, or with incident reports in a deployment setting. These checks are useful for accountability and forensic analysis, but they do not replace secure aggregation, differential privacy, trusted execution, or blockchain consensus. Those mechanisms address different security goals and can be layered with the proposed aggregation logic in future deployments.
+
+\subsection{Decision Semantics and Audit Evaluation Protocol}
+
+The protocol follows three lines of prior work: Byzantine-robust aggregation evaluates whether malicious updates lose influence in the aggregate \citep{blanchard2017krum,yin2018byzantine,pillutla2022rfa}, trust-aware FL uses client-level evidence to weight or suppress suspicious participants \citep{cao2021fltrust,fung2020foolsgold}, and blockchain-assisted FL emphasizes tamper-resistant records and verifiable training histories \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,awan2022blockchainflsurvey}. Our audit protocol adapts these ideas to client-round decision tracing: it evaluates not only the final model utility but also whether the evidence behind each aggregation decision can be reproduced after training.
+
+To make the audit interpretation explicit, each client-round decision is mapped to one of four states. A client is \emph{accepted} when it does not trigger a hard-rejection rule and receives a nonzero aggregation weight close to the benign-client range in that round. A client is \emph{down-weighted} when it does not trigger hard rejection but receives a reduced aggregation weight because its anomaly score increases or its reputation decreases. A client is \emph{rejected} when a hard-rejection rule sets $a_{t,i}=0$, meaning the client has no influence on the aggregate in that round. Finally, a client is \emph{fallback selected} only when all raw weights are zero and the lowest-anomaly clients are restored with small positive weights to avoid a stalled training round.
+
+The explanation attached to a decision is not a free-form textual justification; it is a reconstructable record derived from the stored evidence. For each client and round, the audit payload stores the norm anomaly score, direction score, history score, combined anomaly score, reputation before and after updating, hard-rejection flag, raw aggregation weight, normalized aggregation coefficient, and fallback flag if applicable. Given these fields and the fixed thresholds in Table~\ref{tab:params}, an auditor can reproduce whether the client was accepted, down-weighted, rejected, or fallback selected, and can identify which signal primarily caused the decision.
+
+We evaluate auditability through four protocol-level checks. First, \emph{chain validity} verifies that all block hashes and previous-hash links are intact. Second, \emph{decision reconstructability} checks whether the stored anomaly, reputation, threshold, and weight fields are sufficient to reproduce the recorded aggregation decision. Third, \emph{malicious influence suppression} is measured in controlled experiments by the mean aggregation weight and zero-weight rate assigned to known malicious clients. Fourth, \emph{benign retention} is inspected through nonzero aggregation weights for benign clients under Non-IID data. These metrics evaluate the traceability of aggregation decisions; they should not be interpreted as a guarantee that every malicious client is perfectly detected in deployment.
+
+\begin{table}[t]
+\centering
+\caption{Proposed aggregation hyperparameters.}
+\label{tab:params}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+Parameter & Value & Meaning \\
+\midrule
+Norm coefficient & 0.45 & Norm-deviation weight in $A_{t,i}$ \\
+Direction coefficient & 0.35 & Direction-inconsistency weight in $A_{t,i}$ \\
+History coefficient & 0.20 & History-instability weight in $A_{t,i}$ \\
+$\tau_A$ & 4.0 & Anomaly hard-rejection threshold \\
+$\tau_n$ & 2.5 & Norm threshold used with negative direction \\
+$\tau_d$ & -0.4 & Direction threshold for hard rejection \\
+$\gamma$ & 1.2 & Exponential weight temperature \\
+$a_{\min}$ & 0.0 & Minimum aggregation weight before fallback \\
+Reputation clip & [0.05, 1.5] & Lower and upper reputation bounds \\
+Fallback fraction & 0.5 & Lowest-anomaly fallback fraction \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\subsection{Algorithm}
+
+\noindent\textbf{Algorithm 1: Hash-chain auditable reputation-aware aggregation.}
+Given the current global model $w_t$, client models $\{w_{t,i}\}$, sample counts $\{n_i\}$, reputation table $\{R_{t,i}\}$, and previous updates $\{u_{t-1,i}\}$:
+\begin{enumerate}
+  \item Compute update vectors $u_{t,i}$ and norms $r_{t,i}$.
+  \item Compute the median norm center $c_t$, MAD scale $s_t$, and mean update $\bar{u}_t$.
+  \item Compute norm, direction, and history anomaly scores for each client.
+  \item Update reputation values $R_{t+1,i}$.
+  \item Compute hard-rejection decisions and aggregation weights $a_{t,i}$.
+  \item If all weights are zero, select the lowest-anomaly fallback clients.
+  \item Aggregate $w_{t+1}$ using sample-size-normalized weights.
+  \item Append an audit block containing hashes, metrics, anomaly evidence, reputation values, aggregation weights, and rejection decisions.
+\end{enumerate}
+The output is the updated global model, reputation table, previous-update cache, and audit hash.
+
+\section{Experimental Setup}
+
+\subsection{Datasets and Models}
+
+MNIST is used for sanity checks, while Fashion-MNIST and CIFAR-10 serve as the main benchmarks. Fashion-MNIST is evaluated under both IID and Dirichlet Non-IID settings. CIFAR-10 is used to test whether the conclusions remain valid on a harder colored-image benchmark, with emphasis on the more challenging Non-IID setting. Because CIFAR-10 is substantially more expensive in the current FL simulator, we use it primarily as a three-seed Non-IID stress test rather than exhaustively repeating every IID setting.
+
+\subsection{Data Distribution, Attacks, and Baselines}
+
+The main Non-IID experiments use a Dirichlet split with $\alpha=0.5$. Each main setting uses 10 clients with a malicious ratio of 0.2 unless otherwise specified. The main attack set includes sign flipping, adaptive scaling, and backdoor trigger attacks. The implemented empirical baselines are FedAvg, Krum, Trimmed Mean, coordinate-wise Median, and norm filtering. These baselines cover unprotected averaging, distance-based selection, coordinate-wise robust statistics, and a strong norm-based filter.
+
+FLTrust and FLAME are discussed as closely related defenses but are not included in the current empirical tables. FLTrust relies on a trusted server-side root dataset to construct a reference update, which changes the trust assumptions of the benchmark. FLAME is designed specifically for backdoor mitigation through clustering, clipping, and noise injection. Faithful implementations of these two methods would strengthen a broader comparison, but the current study focuses on whether audit evidence, reputation history, and dynamic robust aggregation can be coupled without assuming trusted root data or a backdoor-specific defense pipeline.
+
+\subsection{Metrics and Reproducibility}
+
+The evaluation metrics include clean accuracy, best clean accuracy, test loss, attack success rate (ASR), rejection or zero-weight rate, chain validity, and runtime. Rejection-based metrics should be interpreted as aggregation decisions rather than perfect malicious-client detection labels.
+
+All formal result tables are generated from the consolidated summary CSV using deterministic table-export scripts. The scripts keep the latest run for each experiment name and exclude smoke tests, tuning diagnostics, and extended exploratory attacks. Figures and audit-case materials are generated by the corresponding export scripts in the \texttt{experiments/} directory.
+
+\section{Results and Discussion}
+
+\subsection{Fashion-MNIST Main Results}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fashionmnist_iid_main.pdf}
+\caption{Clean accuracy and attack success rate on Fashion-MNIST under IID data. Bars report mean clean accuracy over three seeds, error bars report standard deviation, and the line reports ASR.}
+\label{fig:fashion-iid}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fashionmnist_noniid_main.pdf}
+\caption{Clean accuracy and attack success rate on Fashion-MNIST under Dirichlet Non-IID data. FedAvg collapses under sign-flip attacks and shows high ASR under backdoor attacks, while robust aggregation methods maintain competitive clean accuracy and suppress ASR.}
+\label{fig:fashion-noniid}
+\end{figure}
+
+On Fashion-MNIST, FedAvg collapses under sign flipping, reaching approximately random accuracy in both IID and Non-IID settings. FedAvg also remains vulnerable to backdoor attacks: although clean accuracy remains around 85\%, ASR is high, especially under Non-IID backdoor settings. Krum avoids some attacks but suffers substantial clean-accuracy degradation under Non-IID data, confirming that distance-based single-update selection is brittle under heterogeneous client distributions.
+
+The proposed method is stable across all Fashion-MNIST main settings and does not exhibit the catastrophic divergence observed in unprotected FedAvg. Under IID settings, it is essentially tied with norm filtering: for sign flipping, backdoor, and adaptive scaling, the proposed method reaches approximately 88.3\% clean accuracy with ASR around 1.4--1.6\%. Under Non-IID settings, it remains competitive, reaching 84.27\% under sign flipping, 85.21\% under adaptive scaling, and 83.67\% under backdoor attacks. However, the method is not uniformly the top clean-accuracy method; Trimmed Mean and norm filtering remain strong competitors in some Fashion-MNIST settings.
+
+These results illustrate two practical security points. First, unprotected averaging is not merely less accurate under attack; in sign-flip settings it can converge to a nearly unusable model, which is unacceptable for security-sensitive FL services. Second, Krum's poor Non-IID behavior shows that selecting a single apparently central update can discard useful benign diversity. The proposed method avoids this failure mode by assigning continuous aggregation weights rather than selecting one update or applying only a binary norm threshold. Its advantage is therefore stability and traceability, not guaranteed dominance in clean accuracy.
+
+\subsection{CIFAR-10 Non-IID Results}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{cifar10_noniid_main.pdf}
+\caption{Clean accuracy and attack success rate on CIFAR-10 under Dirichlet Non-IID data. Norm filtering achieves the highest clean accuracy in most settings, while the proposed method remains competitive and maintains low ASR with auditable aggregation decisions.}
+\label{fig:cifar-noniid}
+\end{figure}
+
+CIFAR-10 Non-IID experiments provide a harder validation setting. FedAvg again collapses under sign flipping, while Krum shows large instability and low clean accuracy across attacks. Norm filtering is the strongest clean-accuracy baseline on CIFAR-10 Non-IID, reaching 77.62\% under sign flipping, 81.45\% under adaptive scaling, and 77.88\% under backdoor attacks.
+
+The proposed method obtains 74.91\%, 78.61\%, and 76.04\% clean accuracy under sign flipping, adaptive scaling, and backdoor attacks, respectively. Its ASR remains low, especially under backdoor attacks, but clean accuracy trails norm filtering by roughly 1.8--2.8 percentage points. Therefore, the correct empirical claim is not that the proposed method is universally more accurate than all baselines. Instead, the evidence supports a more precise claim: the proposed method provides auditable, reputation-aware robustness with competitive clean accuracy and low ASR, while norm filtering is a stronger pure clean-accuracy baseline on CIFAR-10 Non-IID.
+
+The CIFAR-10 results are important because they prevent overstating the proposed method. A simple norm-filtering rule is highly effective on this benchmark. This suggests that update magnitude remains a strong signal under the evaluated attacks. However, norm filtering alone does not record why each client was down-weighted, how the decision evolved over rounds, or how the decision can be reconstructed after training. The proposed method pays a modest clean-accuracy cost in this harder setting while adding reputation history and tamper-evident decision records. This trade-off is acceptable when post-hoc accountability is part of the security requirement, but it would not justify replacing norm filtering in a deployment whose only objective is maximum clean accuracy.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{proposed_vs_norm_filter_accuracy.pdf}
+\caption{Clean-accuracy comparison between the proposed method and norm filtering across main benchmark conditions.}
+\label{fig:proposed-norm-acc}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{proposed_vs_norm_filter_asr.pdf}
+\caption{Attack-success-rate comparison between the proposed method and norm filtering across main benchmark conditions.}
+\label{fig:proposed-norm-asr}
+\end{figure}
+
+\subsection{Malicious-Ratio Sensitivity}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\linewidth]{malicious_ratio_sensitivity.pdf}
+\caption{Sensitivity to malicious-client ratio on Fashion-MNIST Non-IID adaptive-scaling attacks. All three robust methods remain stable from 10\% to 40\% malicious clients, with no early stopping.}
+\label{fig:ratio}
+\end{figure}
+
+The malicious-ratio sensitivity experiment uses Fashion-MNIST Non-IID adaptive scaling with malicious ratios of 10\%, 20\%, and 40\%. Proposed, Trimmed Mean, and norm filtering all remain stable with no early stopping. The proposed method maintains approximately 85.0--85.2\% clean accuracy and about 2.0\% ASR across all three ratios. Trimmed Mean has the best average clean accuracy in this specific sensitivity setting, while norm filtering improves as the malicious ratio increases. These results indicate stability under increasing malicious participation, but they do not support a claim of universal superiority for the proposed method.
+
+The absence of early stopping across these ratios suggests that the evaluated robust methods have a useful safety margin against adaptive-scaling attacks in this setting. At the same time, the small differences among robust methods indicate that malicious-client ratio alone is not enough to characterize defense difficulty. Attack objective, data heterogeneity, model architecture, and the defense's decision rule jointly determine whether benign and malicious updates are separable.
+
+\subsection{Auditability}
+
+For every completed run, the framework writes per-round metrics, per-client aggregation decisions, and hash-linked audit records. This audit trail is the main system-level distinction from ordinary robust aggregation baselines. The paper emphasizes auditability and reproducible decision tracing as first-class design goals, while clean accuracy and ASR demonstrate that the audit mechanism is paired with a practically competitive defense.
+
+A representative audit case uses Fashion-MNIST Non-IID sign-flip attack with the proposed method and seed 42. The run contains 80 audit blocks and passes hash-linkage verification, satisfying the chain-validity check. The stored per-client fields also support decision reconstruction because each zero-weight or reduced-weight decision can be traced to the recorded anomaly scores, reputation values, rejection flags, and aggregation weights. The final clean accuracy is 86.47\%, the best clean accuracy is 86.47\%, and the final ASR is 1.08\%. The two malicious clients receive zero mean aggregation weight across all 80 rounds, while benign clients retain an average aggregation weight of 0.2831. This case demonstrates malicious influence suppression and benign retention in the controlled benchmark, while also showing how the recorded evidence supports post-hoc inspection of aggregation decisions.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\linewidth]{audit_case_round_metrics.pdf}
+\caption{Audit case round metrics under Fashion-MNIST Non-IID sign-flip attack. The figure shows clean accuracy, ASR, zero-weight rate, and rejection behavior over rounds.}
+\label{fig:audit-round}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.92\linewidth]{audit_case_client_weights.pdf}
+\caption{Per-client aggregation weights in the audit case. Malicious clients receive zero aggregation weight across all rounds, while benign clients retain nonzero contribution weights.}
+\label{fig:audit-clients}
+\end{figure}
+
+\subsection{Runtime and Audit Overhead}
+
+\begin{table}[t]
+\centering
+\caption{Runtime and audit-log overhead summary.}
+\label{tab:overhead}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & Method & Runs & Round time (s) & Defense time (s) & Audit log (KB) \\
+\midrule
+Fashion-MNIST & Norm Filter & 18 & 1.434 & 0.0059 & 349.28 \\
+Fashion-MNIST & Proposed & 18 & 1.788 & 0.0178 & 513.59 \\
+CIFAR-10 & Norm Filter & 9 & 18.550 & 0.0550 & 522.76 \\
+CIFAR-10 & Proposed & 9 & 18.719 & 0.0797 & 771.21 \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+The proposed method records more per-client information than ordinary robust aggregation baselines, so its audit log is larger. The runtime overhead is moderate in the current implementation. On Fashion-MNIST, the proposed method averages 1.788 s per round, compared with 1.434 s for norm filtering. On CIFAR-10, the proposed method averages 18.719 s per round, close to norm filtering at 18.550 s. The average defense computation time is small relative to total round time. These results indicate that the main cost of the proposed approach is richer audit logging rather than a large increase in aggregation computation.
+
+\subsection{Implications for Secure Federated Learning}
+
+The empirical results support a security-system interpretation rather than a pure accuracy-ranking interpretation. Robustness and auditability are related but distinct goals. Robust aggregation reduces the immediate influence of suspicious updates, while auditability preserves the evidence needed to explain, reproduce, and challenge those decisions after training. A deployment in which operators must investigate incidents, justify client exclusion, or reproduce model-governance records may reasonably prefer a slightly less accurate but auditable defense over a purely filtering-based rule.
+
+This trade-off is relevant to information-security applications where training participants belong to different organizations or administrative domains. In such settings, an aggregation decision can affect future participation, trust, and accountability. Recording the evidence behind down-weighting or exclusion therefore supports not only technical debugging but also operational review and dispute resolution.
+
+The results also show why Non-IID FL complicates security decisions. Honest clients can produce unusual update directions because their local data are not representative of the global distribution. A defense that treats every deviation as malicious risks suppressing useful minority-client information. Conversely, adaptive attackers can exploit this tolerance by making poisoned updates look statistically plausible. The proposed method addresses this tension by combining norm, direction, history, and reputation signals, but the experiments show that this combination should be viewed as a practical trade-off rather than a complete solution.
+
+Finally, the audit overhead results suggest that richer traceability is feasible in the evaluated simulator. The additional defense computation is small relative to training time, especially on CIFAR-10, while the audit log remains modest in absolute size. In a production blockchain or permissioned-ledger deployment, consensus and storage replication would add costs beyond those measured here. Therefore, the present results should be interpreted as evidence for the feasibility of auditable aggregation logic, not as a full end-to-end blockchain performance evaluation.
+
+\section{Limitations and Future Work}
+
+The current experiments support the claim that the proposed method is auditable and robustly competitive, but they also reveal important limitations. First, the method is not uniformly clean-accuracy superior to strong filtering baselines. Norm filtering is particularly strong on CIFAR-10 Non-IID, and Trimmed Mean performs best in the Fashion-MNIST malicious-ratio sensitivity experiment. Second, the current benchmark treats FLTrust and FLAME as related-work references rather than empirical baselines. Adding faithful implementations of these methods would strengthen future comparisons. Third, the present audit chain is an experimental hash-linked log rather than a full production blockchain deployment with consensus, gas cost, and smart-contract execution overhead. A deployment-focused extension should evaluate those costs separately.
+
+Future work should focus on adding stronger recent baselines, improving the proposed method's CIFAR-10 clean accuracy without sacrificing auditability, and extending the audit layer to a realistic blockchain or permissioned ledger implementation.
+
+\section{Declarations}
+
+\subsection{Data and Code Availability}
+
+The experiments use public image benchmark datasets: MNIST, Fashion-MNIST, and CIFAR-10. The experimental scripts, generated manifests, summary tables, figures, and audit logs are maintained with the project repository. Formal result tables are generated from the consolidated summary CSV using deterministic export scripts, and the audit case study is generated from the recorded per-round and per-client logs. A cleaned reproducibility package containing the paper-specific code, configurations, and analysis scripts will be made available in a public repository upon publication or from the corresponding author upon reasonable request.
+
+\subsection{Funding}
+
+This research did not receive any specific grant from funding agencies in the public, commercial, or not-for-profit sectors.
+
+\subsection{Declaration of Competing Interest}
+
+The author declares that there are no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\subsection{Ethics and Security Scope}
+
+This study uses public benchmark datasets and does not involve human subjects or private client data. The threat model focuses on poisoning robustness and reconstructable aggregation decisions in federated learning. Privacy leakage, secure aggregation protocols, adversarial consensus, smart-contract vulnerabilities, and economic incentive attacks are outside the scope of the current implementation and should be evaluated separately in a full deployment study.
+
+\subsection{Declaration of Generative AI and AI-Assisted Technologies}
+
+During the preparation of this work, the author used OpenAI ChatGPT/Codex to support manuscript organization, language editing, consistency checking, and preparation of submission materials. After using these tools, the author reviewed and edited the content as needed and takes full responsibility for the content of the article.
+
+\section{Conclusion}
+
+This paper presents a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. By combining multi-signal anomaly scoring, hash-chain-backed reputation, and dynamic weighted aggregation, the framework makes aggregation decisions reconstructable while maintaining competitive robustness in heterogeneous FL environments. The experiments show that the method prevents catastrophic poisoning failures and maintains low ASR, but the results also show that norm filtering and Trimmed Mean remain strong baselines. The contribution should therefore be understood as auditable and competitive robustness rather than universal clean-accuracy dominance.
+
+\bibliographystyle{elsarticle-harv}
+\bibliography{references}
+
+\end{document}
