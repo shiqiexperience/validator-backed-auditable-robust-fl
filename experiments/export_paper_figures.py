@@ -208,7 +208,9 @@ def ratio_sensitivity(df: pd.DataFrame, out_dir: Path) -> None:
     axes[0].set_title("Accuracy under Increasing Malicious Ratio")
     axes[1].set_ylabel("ASR (%)")
     axes[1].set_title("ASR under Increasing Malicious Ratio")
-    axes[0].legend(frameon=False)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     save(fig, out_dir, "malicious_ratio_sensitivity")
 
 
