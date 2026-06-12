@@ -1,0 +1,13 @@
+metric,value,unit,definition
+Stored audit blocks,80,blocks,Number of hash-linked round records in the audit case.
+Chain verification rate,100.00,%,Share of the recorded audit chain that passes hash and linkage verification.
+Tamper detection rate,100.00,%,Detected altered chains after one simulated metric modification per block (80/80).
+Decision reconstruction rate,100.00,%,Client-round decisions reproducible from stored decision fields (800/800).
+Malicious suppression rate,100.00,%,Malicious client-rounds receiving zero aggregation weight.
+Benign retention rate,85.78,%,Benign client-rounds retaining nonzero aggregation weight.
+Mean malicious weight,0.0000,weight,Average aggregation weight assigned to malicious clients.
+Mean benign weight,0.2831,weight,Average aggregation weight assigned to benign clients.
+Benign--malicious weight gap,0.2831,weight,Difference between mean benign and malicious aggregation weights.
+Mean rejection precision,64.38,%,Round-average precision when zero-weight decisions are compared with known attack labels.
+Mean rejection recall,100.00,%,Round-average recall when zero-weight decisions are compared with known attack labels.
+Mean false rejection rate,14.22,%,Round-average benign-client zero-weight rate under known labels.
