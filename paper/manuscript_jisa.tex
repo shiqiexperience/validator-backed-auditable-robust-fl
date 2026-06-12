@@ -312,14 +312,14 @@ A representative audit case uses Fashion-MNIST Non-IID sign-flip attack with the
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.92\linewidth]{audit_case_round_metrics.pdf}
-\caption{Audit case round metrics under Fashion-MNIST Non-IID sign-flip attack. The figure shows clean accuracy, ASR, zero-weight rate, and rejection behavior over rounds.}
+\caption{Representative single-run audit trajectory under Fashion-MNIST Non-IID sign-flip attack with the proposed method (seed 42). The figure shows clean accuracy, ASR, zero-weight rate, hard-rejection rate, and mean aggregation weight over 80 rounds. Because this figure visualizes one audit case rather than a multi-seed average, standard-deviation bands are not shown.}
 \label{fig:audit-round}
 \end{figure}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.92\linewidth]{audit_case_client_weights.pdf}
-\caption{Per-client aggregation weights in the audit case. Malicious clients receive zero aggregation weight across all rounds, while benign clients retain nonzero contribution weights.}
+\caption{Per-client aggregation weights in the same representative audit case (seed 42). Malicious clients receive zero aggregation weight across all rounds, while benign clients retain nonzero contribution weights.}
 \label{fig:audit-clients}
 \end{figure}
 
