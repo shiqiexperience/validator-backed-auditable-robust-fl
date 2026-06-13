@@ -1,0 +1,18 @@
+\begin{tabular}{lllrrrrr}
+\toprule
+Dataset & Split & Attack & Runs & Chain & Reconstruction & Suppression & Retention \\
+\midrule
+CIFAR10 & IID & adaptive-scaling & 1 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 98.44 $\pm$ 0.00 \\
+CIFAR10 & IID & backdoor & 1 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 97.50 $\pm$ 0.00 & 98.65 $\pm$ 0.00 \\
+CIFAR10 & IID & sign-flip & 1 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 95.94 $\pm$ 0.00 \\
+CIFAR10 & Non-IID & adaptive-scaling & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 99.62 $\pm$ 0.66 \\
+CIFAR10 & Non-IID & backdoor & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 53.33 $\pm$ 18.55 & 89.76 $\pm$ 10.97 \\
+CIFAR10 & Non-IID & sign-flip & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 87.88 $\pm$ 7.71 \\
+FashionMNIST & IID & adaptive-scaling & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 98.85 $\pm$ 0.50 \\
+FashionMNIST & IID & backdoor & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 99.84 $\pm$ 0.16 \\
+FashionMNIST & IID & sign-flip & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 99.06 $\pm$ 0.16 \\
+FashionMNIST & Non-IID & adaptive-scaling & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 0.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 \\
+FashionMNIST & Non-IID & backdoor & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 97.50 $\pm$ 0.00 & 97.29 $\pm$ 2.73 \\
+FashionMNIST & Non-IID & sign-flip & 3 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 100.00 $\pm$ 0.00 & 85.62 $\pm$ 1.96 \\
+\bottomrule
+\end{tabular}

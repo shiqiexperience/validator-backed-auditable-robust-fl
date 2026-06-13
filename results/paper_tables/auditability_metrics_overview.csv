@@ -1,0 +1,4 @@
+scope,runs,audit_blocks,client_round_decisions,chain_verification_rate_mean,chain_verification_rate_std,tamper_detection_rate_mean,tamper_detection_rate_std,decision_reconstruction_rate_mean,decision_reconstruction_rate_std,benign_retention_rate_mean,benign_retention_rate_std
+Main benchmark,30,2880,28800,1.0,0.0,1.0,0.0,1.0,0.0,0.9556076388888889,0.06480075611746205
+Malicious-ratio sensitivity,9,720,7200,1.0,0.0,1.0,0.0,1.0,0.0,1.0,0.0
+All proposed runs,39,3600,36000,1.0,0.0,1.0,0.0,1.0,0.0,0.9658520299145299,0.05969620083601802
