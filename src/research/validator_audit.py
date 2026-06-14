@@ -3,6 +3,8 @@
 This module separates aggregation from audit finalization. The aggregation
 server proposes a block, while independent validators verify client
 commitments, decision consistency, hash linkage, and threshold finality.
+The decentralized extension models a permissioned ledger setting in which the
+round aggregator is selected by a public rule and cannot finalize blocks alone.
 """
 
 from __future__ import annotations
@@ -39,6 +41,30 @@ def _sign(secret: str, message: str) -> str:
 def _verify(secret: str, message: str, signature: str) -> bool:
     expected = _sign(secret, message)
     return hmac.compare_digest(expected, signature)
+
+
+def select_aggregator(round_id: int, aggregator_ids: Sequence[int]) -> int:
+    """Select a round aggregator by deterministic round-robin rotation."""
+
+    if not aggregator_ids:
+        raise ValueError("aggregator_ids cannot be empty")
+    ordered = sorted(int(aggregator_id) for aggregator_id in aggregator_ids)
+    return ordered[(int(round_id) - 1) % len(ordered)]
+
+
+def make_aggregator_secrets(aggregator_ids: Sequence[int]) -> dict[int, str]:
+    return {int(aggregator_id): f"aggregator-secret-{int(aggregator_id)}" for aggregator_id in aggregator_ids}
+
+
+def _aggregator_message(proposed_block: Mapping[str, Any]) -> str:
+    return canonical_json(
+        {
+            "round": int(proposed_block["round"]),
+            "aggregator_id": int(proposed_block["aggregator_id"]),
+            "previous_hash": str(proposed_block["previous_hash"]),
+            "payload_hash": str(proposed_block["payload_hash"]),
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -124,8 +150,10 @@ def build_proposed_block(
     source_block: Mapping[str, Any],
     previous_hash: str,
     client_secrets: Mapping[int, str],
+    aggregator_id: int | None = None,
+    aggregator_secret: str | None = None,
 ) -> dict[str, Any]:
-    """Build a server-proposed block from the existing audit payload."""
+    """Build an aggregator-proposed block from the existing audit payload."""
 
     payload = copy.deepcopy(source_block["payload"])
     commitments = [
@@ -140,6 +168,11 @@ def build_proposed_block(
         "client_commitments": [commitment.to_record() for commitment in commitments],
     }
     proposed["payload_hash"] = hash_payload(payload)
+    if aggregator_id is not None:
+        if aggregator_secret is None:
+            raise ValueError("aggregator_secret is required when aggregator_id is set")
+        proposed["aggregator_id"] = int(aggregator_id)
+        proposed["aggregator_signature"] = _sign(aggregator_secret, _aggregator_message(proposed))
     proposed["proposal_hash"] = hash_payload(proposed)
     return proposed
 
@@ -162,9 +195,11 @@ def verify_proposed_block(
     proposed_block: Mapping[str, Any],
     previous_hash: str,
     client_secrets: Mapping[int, str],
+    aggregator_ids: Sequence[int] | None = None,
+    aggregator_secrets: Mapping[int, str] | None = None,
     tolerance: float = 1e-9,
 ) -> tuple[bool, str]:
-    """Verify a server-proposed block using public decision rules and commitments."""
+    """Verify an aggregator-proposed block using public rules and commitments."""
 
     if proposed_block.get("previous_hash") != previous_hash:
         return False, "previous_hash_mismatch"
@@ -177,6 +212,22 @@ def verify_proposed_block(
     found_proposal_hash = proposal_copy.pop("proposal_hash", "")
     if hash_payload(proposal_copy) != found_proposal_hash:
         return False, "proposal_hash_mismatch"
+
+    if aggregator_ids is not None:
+        if "aggregator_id" not in proposed_block or "aggregator_signature" not in proposed_block:
+            return False, "missing_aggregator_authorization"
+        aggregator_id = int(proposed_block["aggregator_id"])
+        expected_aggregator = select_aggregator(int(proposed_block["round"]), aggregator_ids)
+        if aggregator_id != expected_aggregator:
+            return False, "unauthorized_aggregator"
+        if aggregator_secrets is None or aggregator_id not in aggregator_secrets:
+            return False, "unknown_aggregator"
+        if not _verify(
+            aggregator_secrets[aggregator_id],
+            _aggregator_message(proposed_block),
+            str(proposed_block["aggregator_signature"]),
+        ):
+            return False, "aggregator_signature_invalid"
 
     clients = _client_map(proposed_block)
     decisions = _decision_map(proposed_block)
@@ -234,8 +285,16 @@ class Validator:
         proposed_block: Mapping[str, Any],
         previous_hash: str,
         client_secrets: Mapping[int, str],
+        aggregator_ids: Sequence[int] | None = None,
+        aggregator_secrets: Mapping[int, str] | None = None,
     ) -> VerificationResult:
-        accepted, reason = verify_proposed_block(proposed_block, previous_hash, client_secrets)
+        accepted, reason = verify_proposed_block(
+            proposed_block,
+            previous_hash,
+            client_secrets,
+            aggregator_ids=aggregator_ids,
+            aggregator_secrets=aggregator_secrets,
+        )
         if self.byzantine and self.byzantine_accept_invalid:
             accepted = True
             reason = "byzantine_accept"
@@ -287,9 +346,17 @@ class ValidatorCommittee:
         proposed_block: Mapping[str, Any],
         previous_hash: str,
         client_secrets: Mapping[int, str],
+        aggregator_ids: Sequence[int] | None = None,
+        aggregator_secrets: Mapping[int, str] | None = None,
     ) -> FinalizedBlock:
         results = [
-            validator.verify(proposed_block, previous_hash, client_secrets)
+            validator.verify(
+                proposed_block,
+                previous_hash,
+                client_secrets,
+                aggregator_ids=aggregator_ids,
+                aggregator_secrets=aggregator_secrets,
+            )
             for validator in self.validators
         ]
         accepted = [result for result in results if result.accepted and result.signature]
@@ -372,7 +439,29 @@ def tamper_block(proposed_block: Mapping[str, Any], scenario: str) -> dict[str, 
         block["client_commitments"][0]["signature"] = sha256_hex("bad-signature")
     elif scenario == "payload_hash_tamper":
         block["payload_hash"] = sha256_hex("bad-payload-hash")
+    elif scenario == "unauthorized_aggregator":
+        block["aggregator_id"] = int(block.get("aggregator_id", 0)) + 1
+    elif scenario == "aggregator_signature_tamper":
+        block["aggregator_signature"] = sha256_hex("bad-aggregator-signature")
+    elif scenario == "aggregator_equivocation":
+        payload["model_hash"] = sha256_hex("equivocated-model")
     else:
         raise ValueError(f"unknown tampering scenario: {scenario}")
     return block
 
+
+def detect_equivocation(finalized_blocks: Sequence[Mapping[str, Any]]) -> tuple[bool, str]:
+    """Detect multiple finalized proposals by the same aggregator for one round."""
+
+    seen: dict[tuple[int, int], str] = {}
+    for block in finalized_blocks:
+        aggregator_id = block.get("aggregator_id")
+        if aggregator_id is None:
+            continue
+        key = (int(block["round"]), int(aggregator_id))
+        proposal_hash = str(block["proposal_hash"])
+        previous = seen.get(key)
+        if previous is not None and previous != proposal_hash:
+            return True, "aggregator_equivocation_detected"
+        seen[key] = proposal_hash
+    return False, "no_equivocation"

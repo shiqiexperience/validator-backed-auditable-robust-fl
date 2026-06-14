@@ -19,8 +19,10 @@ from src.research.validator_audit import (
     GENESIS_HASH,
     ValidatorCommittee,
     build_proposed_block,
+    make_aggregator_secrets,
     make_client_secrets,
     make_validators,
+    select_aggregator,
     tamper_block,
 )
 
@@ -35,6 +37,9 @@ TAMPER_SCENARIOS = [
     "fake_client",
     "client_signature_tamper",
     "payload_hash_tamper",
+    "unauthorized_aggregator",
+    "aggregator_signature_tamper",
+    "aggregator_equivocation",
 ]
 
 
@@ -96,14 +101,18 @@ def evaluate_run(
     validator_count: int,
     threshold: int,
     byzantine_validators: int,
+    aggregator_count: int,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     blocks = load_blocks(run_dir / "audit_chain.jsonl")
     client_secrets = make_client_secrets(infer_client_ids(blocks))
+    aggregator_ids = list(range(aggregator_count))
+    aggregator_secrets = make_aggregator_secrets(aggregator_ids)
     committee = ValidatorCommittee(make_validators(validator_count, byzantine_validators), threshold)
 
     valid_finalized = 0
     valid_total = 0
     valid_latencies: list[float] = []
+    aggregator_authorization_checked = 0
     tamper_rows: list[dict[str, Any]] = []
     scenario_counts = {
         scenario: {"rejected": 0, "accepted": 0, "total": 0, "latencies": []}
@@ -112,11 +121,25 @@ def evaluate_run(
 
     previous_hash = GENESIS_HASH
     for block in blocks:
-        proposed = build_proposed_block(block, previous_hash, client_secrets)
+        aggregator_id = select_aggregator(int(block["round"]), aggregator_ids)
+        proposed = build_proposed_block(
+            block,
+            previous_hash,
+            client_secrets,
+            aggregator_id=aggregator_id,
+            aggregator_secret=aggregator_secrets[aggregator_id],
+        )
         start = time.perf_counter()
-        finalized = committee.finalize(proposed, previous_hash, client_secrets)
+        finalized = committee.finalize(
+            proposed,
+            previous_hash,
+            client_secrets,
+            aggregator_ids=aggregator_ids,
+            aggregator_secrets=aggregator_secrets,
+        )
         elapsed = time.perf_counter() - start
         valid_total += 1
+        aggregator_authorization_checked += int(finalized.finalized)
         valid_latencies.append(elapsed)
         if finalized.finalized:
             valid_finalized += 1
@@ -124,7 +147,13 @@ def evaluate_run(
         for scenario in TAMPER_SCENARIOS:
             bad = tamper_block(proposed, scenario)
             start = time.perf_counter()
-            bad_finalized = committee.finalize(bad, previous_hash, client_secrets)
+            bad_finalized = committee.finalize(
+                bad,
+                previous_hash,
+                client_secrets,
+                aggregator_ids=aggregator_ids,
+                aggregator_secrets=aggregator_secrets,
+            )
             elapsed = time.perf_counter() - start
             bucket = scenario_counts[scenario]
             bucket["total"] += 1
@@ -149,7 +178,11 @@ def evaluate_run(
         "validator_count": validator_count,
         "threshold": threshold,
         "byzantine_validators": byzantine_validators,
+        "aggregator_count": aggregator_count,
         "valid_block_finalization_rate": valid_finalized / valid_total if valid_total else 0.0,
+        "aggregator_authorization_verification_rate": (
+            aggregator_authorization_checked / valid_total if valid_total else 0.0
+        ),
         "mean_valid_verification_time_ms": 1000.0 * statistics.mean(valid_latencies) if valid_latencies else 0.0,
     }
 
@@ -179,11 +212,13 @@ def aggregate_by_scenario(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         rejection_values = [float(row["invalid_block_rejection_rate"]) for row in group]
         acceptance_values = [float(row["invalid_block_acceptance_rate"]) for row in group]
         valid_values = [float(row["valid_block_finalization_rate"]) for row in group]
+        authorization_values = [float(row["aggregator_authorization_verification_rate"]) for row in group]
         invalid_time = [float(row["mean_invalid_verification_time_ms"]) for row in group]
         valid_time = [float(row["mean_valid_verification_time_ms"]) for row in group]
         rej_mean, rej_std = mean_std(rejection_values)
         acc_mean, acc_std = mean_std(acceptance_values)
         valid_mean, valid_std = mean_std(valid_values)
+        auth_mean, auth_std = mean_std(authorization_values)
         invalid_ms, invalid_ms_std = mean_std(invalid_time)
         valid_ms, valid_ms_std = mean_std(valid_time)
         output.append(
@@ -193,6 +228,8 @@ def aggregate_by_scenario(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tampered_blocks": sum(int(row["tampered_blocks"]) for row in group),
                 "valid_block_finalization_rate_mean": valid_mean,
                 "valid_block_finalization_rate_std": valid_std,
+                "aggregator_authorization_verification_rate_mean": auth_mean,
+                "aggregator_authorization_verification_rate_std": auth_std,
                 "invalid_block_rejection_rate_mean": rej_mean,
                 "invalid_block_rejection_rate_std": rej_std,
                 "invalid_block_acceptance_rate_mean": acc_mean,
@@ -209,12 +246,19 @@ def aggregate_by_scenario(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def threshold_sensitivity(
     run_dirs: list[Path],
     settings: list[tuple[int, int, int]],
+    aggregator_count: int,
 ) -> list[dict[str, Any]]:
     rows = []
     for validator_count, threshold, byzantine in settings:
         setting_rows = []
         for run_dir in run_dirs:
-            tamper_rows, metadata = evaluate_run(run_dir, validator_count, threshold, byzantine)
+            tamper_rows, metadata = evaluate_run(
+                run_dir,
+                validator_count,
+                threshold,
+                byzantine,
+                aggregator_count=aggregator_count,
+            )
             rejection_values = [float(row["invalid_block_rejection_rate"]) for row in tamper_rows]
             setting_rows.append(
                 {
@@ -270,6 +314,7 @@ def main() -> None:
     parser.add_argument("--validator-count", type=int, default=5)
     parser.add_argument("--threshold", type=int, default=3)
     parser.add_argument("--byzantine-validators", type=int, default=0)
+    parser.add_argument("--aggregator-count", type=int, default=5)
     args = parser.parse_args()
 
     run_dirs = discover_latest_proposed_runs(Path(args.results_dir))
@@ -281,6 +326,7 @@ def main() -> None:
             validator_count=args.validator_count,
             threshold=args.threshold,
             byzantine_validators=args.byzantine_validators,
+            aggregator_count=args.aggregator_count,
         )
         all_tamper_rows.extend(rows)
         valid_rows.append(metadata)
@@ -298,7 +344,10 @@ def main() -> None:
         (7, 5, 2),
     ]
     threshold_runs = representative_runs(run_dirs)
-    write_csv(out_dir / "validator_audit_threshold_sensitivity.csv", threshold_sensitivity(threshold_runs, settings))
+    write_csv(
+        out_dir / "validator_audit_threshold_sensitivity.csv",
+        threshold_sensitivity(threshold_runs, settings, aggregator_count=args.aggregator_count),
+    )
 
     print(f"Evaluated validator-backed audit on {len(run_dirs)} runs")
     print(f"Evaluated threshold sensitivity on {len(threshold_runs)} representative runs")

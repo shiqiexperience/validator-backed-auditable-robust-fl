@@ -37,7 +37,7 @@ Upgrade the work from:
 
 to:
 
-> role-separated, validator-backed auditable robust aggregation for poisoning-resistant federated learning
+> decentralized, role-separated, validator-backed auditable robust aggregation for poisoning-resistant federated learning
 
 The new design must separate:
 
@@ -45,6 +45,8 @@ The new design must separate:
 - audit-record proposal;
 - independent verification;
 - audit-chain finalization.
+
+The stronger revision should not rely on a permanently trusted aggregation server. Instead, each round should have a publicly selected aggregator or leader that proposes the aggregation decision, while a validator committee independently verifies and finalizes the block.
 
 ## 4. Revised Threat Model
 
@@ -56,7 +58,7 @@ Clients may submit poisoned model updates through sign-flip, adaptive-scaling, b
 
 ### Potentially dishonest or faulty server
 
-The aggregation server may:
+The aggregation proposer may:
 
 - misreport anomaly scores;
 - alter aggregation weights;
@@ -64,6 +66,8 @@ The aggregation server may:
 - modify model hashes;
 - write an inconsistent audit block;
 - attempt to hide malicious-client influence.
+
+The revised design should treat this role as a rotating aggregator rather than a permanently trusted central server.
 
 ### Independent validators
 
@@ -76,6 +80,8 @@ Security requires at least a threshold of honest validators. A reasonable first 
 - `m` validators;
 - at most `f` Byzantine validators;
 - finality requires at least `q` valid signatures, e.g. `q = 2f + 1` or majority threshold in a simplified permissioned setting.
+
+The current implementation uses a permissioned validator-backed protocol simulation. It does not yet implement a full production blockchain network, validator incentives, gas accounting, or real PBFT networking.
 
 ## 5. Revised Protocol
 
@@ -95,9 +101,9 @@ Purpose:
 - the server cannot forge a client update;
 - validators can check whether a proposed block corresponds to signed client submissions.
 
-### Step 2: Server proposes aggregation decision
+### Step 2: Rotating aggregator proposes aggregation decision
 
-The server computes:
+A public round-robin rule selects the aggregator for round `t`. The selected aggregator computes:
 
 - update norm;
 - direction score;
@@ -107,15 +113,19 @@ The server computes:
 - hard-rejection flag;
 - raw aggregation weight;
 - normalized aggregation coefficient;
-- model hash.
+- model hash;
+- proposal hash;
+- aggregator signature.
 
-The server creates a proposed audit block but cannot finalize it alone.
+The aggregator creates a proposed audit block but cannot finalize it alone.
 
 ### Step 3: Validator verification
 
 Validators verify:
 
 - client signatures;
+- aggregator eligibility;
+- aggregator signature;
 - update/model hashes;
 - hash linkage to the previous block;
 - required decision fields are present;
@@ -220,6 +230,7 @@ Core components:
 - signature simulation or real Ed25519 signatures
 - block verification routines
 - tampering scenarios
+- rotating aggregator selection and authorization checks
 
 Add experiment script:
 
@@ -231,38 +242,56 @@ Outputs:
 - `experiments_b_journal/paper_tables/validator_threshold_sensitivity.csv`
 - possible figure: `validator_audit_overhead.pdf`
 
+Current implementation status:
+
+- `src/research/validator_audit.py` implemented.
+- `experiments/export_validator_audit_metrics.py` implemented.
+- 39 proposed-method runs evaluated.
+- 3600 valid blocks checked.
+- 43200 invalid/tampered proposal checks evaluated.
+- Valid block finalization rate: 100%.
+- Aggregator authorization verification rate: 100%.
+- Invalid proposal rejection rate: 100%.
+- Invalid proposal acceptance rate: 0%.
+- Mean valid verification time with 5 validators and threshold 3: about 1.32 ms per block.
+
+Additional design note:
+
+- `docs/decentralized_redesign_notes.md`
+
 ## 8. Manuscript Changes Needed
 
 ### Title
 
 Possible revised title:
 
-> Validator-Backed Hash-Chain Auditable Robust Aggregation for Federated Learning Against Poisoning and Server-Side Tampering
+> Decentralized Validator-Backed Auditable Robust Aggregation for Federated Learning Against Poisoning and Aggregator Tampering
 
 ### Abstract
 
 Must mention:
 
 - role separation;
+- rotating aggregator or leader selection;
 - validator-backed audit finalization;
-- poisoning attacks and server-side tampering;
+- poisoning attacks and aggregator-side tampering;
 - objective auditability metrics.
 
 ### Introduction
 
 Add the gap:
 
-> Existing hash-chain or blockchain-assisted FL schemes often log training events, but if the aggregation server alone constructs and finalizes the log, the audit trail does not protect against insider manipulation.
+> Existing hash-chain or blockchain-assisted FL schemes often log training events, but if a single aggregation server constructs and finalizes the log, the audit trail does not protect against insider manipulation.
 
 ### Threat Model
 
-Add dishonest/faulty server and validator trust assumptions.
+Add malicious clients, dishonest/faulty aggregators, and validator trust assumptions.
 
 ### Method
 
 Replace single-server audit-chain logging with:
 
-- server-proposed audit block;
+- rotating-aggregator-proposed audit block;
 - validator verification;
 - threshold-signed finalization.
 
@@ -271,6 +300,8 @@ Replace single-server audit-chain logging with:
 Add:
 
 - server tampering simulation;
+- unauthorized aggregator rejection;
+- aggregator signature tampering;
 - invalid block rejection;
 - threshold sensitivity;
 - validator overhead.
@@ -311,4 +342,3 @@ The next venue should be selected only after the revised contribution is clear.
 3. Add one compact protocol-security table and one overhead table/figure.
 4. Rewrite Threat Model and Proposed Method.
 5. Reframe novelty around role separation and validator-backed audit finalization.
-
