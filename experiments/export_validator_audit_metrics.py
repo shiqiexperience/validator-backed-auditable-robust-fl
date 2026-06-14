@@ -102,12 +102,20 @@ def evaluate_run(
     threshold: int,
     byzantine_validators: int,
     aggregator_count: int,
+    offline_validators: int = 0,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     blocks = load_blocks(run_dir / "audit_chain.jsonl")
     client_secrets = make_client_secrets(infer_client_ids(blocks))
     aggregator_ids = list(range(aggregator_count))
     aggregator_secrets = make_aggregator_secrets(aggregator_ids)
-    committee = ValidatorCommittee(make_validators(validator_count, byzantine_validators), threshold)
+    committee = ValidatorCommittee(
+        make_validators(
+            validator_count,
+            byzantine_validators,
+            offline_count=offline_validators,
+        ),
+        threshold,
+    )
 
     valid_finalized = 0
     valid_total = 0
@@ -178,6 +186,7 @@ def evaluate_run(
         "validator_count": validator_count,
         "threshold": threshold,
         "byzantine_validators": byzantine_validators,
+        "offline_validators": offline_validators,
         "aggregator_count": aggregator_count,
         "valid_block_finalization_rate": valid_finalized / valid_total if valid_total else 0.0,
         "aggregator_authorization_verification_rate": (
@@ -339,6 +348,61 @@ def byzantine_boundary_sensitivity(
     return rows
 
 
+def liveness_dropout_sensitivity(
+    run_dirs: list[Path],
+    settings: list[tuple[int, int, int, int]],
+    aggregator_count: int,
+) -> list[dict[str, Any]]:
+    """Evaluate valid-block finalization when validators are offline."""
+
+    rows = []
+    for validator_count, threshold, byzantine, offline in settings:
+        setting_rows = []
+        for run_dir in run_dirs:
+            tamper_rows, metadata = evaluate_run(
+                run_dir,
+                validator_count,
+                threshold,
+                byzantine,
+                aggregator_count=aggregator_count,
+                offline_validators=offline,
+            )
+            rejection_values = [float(row["invalid_block_rejection_rate"]) for row in tamper_rows]
+            acceptance_values = [float(row["invalid_block_acceptance_rate"]) for row in tamper_rows]
+            setting_rows.append(
+                {
+                    "valid": metadata["valid_block_finalization_rate"],
+                    "rejection": statistics.mean(rejection_values) if rejection_values else 0.0,
+                    "acceptance": statistics.mean(acceptance_values) if acceptance_values else 0.0,
+                    "time": metadata["mean_valid_verification_time_ms"],
+                }
+            )
+        valid_mean, valid_std = mean_std([row["valid"] for row in setting_rows])
+        rejection_mean, rejection_std = mean_std([row["rejection"] for row in setting_rows])
+        acceptance_mean, acceptance_std = mean_std([row["acceptance"] for row in setting_rows])
+        time_mean, time_std = mean_std([row["time"] for row in setting_rows])
+        rows.append(
+            {
+                "validator_count": validator_count,
+                "threshold": threshold,
+                "byzantine_validators": byzantine,
+                "offline_validators": offline,
+                "available_validators": validator_count - offline,
+                "runs": len(setting_rows),
+                "valid_block_finalization_rate_mean": valid_mean,
+                "valid_block_finalization_rate_std": valid_std,
+                "valid_block_failure_rate_mean": 1.0 - valid_mean,
+                "invalid_block_rejection_rate_mean": rejection_mean,
+                "invalid_block_rejection_rate_std": rejection_std,
+                "invalid_block_acceptance_rate_mean": acceptance_mean,
+                "invalid_block_acceptance_rate_std": acceptance_std,
+                "mean_valid_verification_time_ms": time_mean,
+                "std_valid_verification_time_ms": time_std,
+            }
+        )
+    return rows
+
+
 def representative_runs(run_dirs: list[Path]) -> list[Path]:
     """Pick one latest run per suite/dataset/split/attack setting for threshold sweeps."""
 
@@ -414,6 +478,24 @@ def main() -> None:
         byzantine_boundary_sensitivity(
             threshold_runs,
             boundary_settings,
+            aggregator_count=args.aggregator_count,
+        ),
+    )
+    dropout_settings = [
+        (5, 3, 0, 0),
+        (5, 3, 0, 1),
+        (5, 3, 0, 2),
+        (5, 3, 0, 3),
+        (7, 5, 0, 0),
+        (7, 5, 0, 1),
+        (7, 5, 0, 2),
+        (7, 5, 0, 3),
+    ]
+    write_csv(
+        out_dir / "validator_audit_liveness_dropout.csv",
+        liveness_dropout_sensitivity(
+            threshold_runs,
+            dropout_settings,
             aggregator_count=args.aggregator_count,
         ),
     )

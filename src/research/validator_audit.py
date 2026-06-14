@@ -279,6 +279,7 @@ class Validator:
     secret: str
     byzantine: bool = False
     byzantine_accept_invalid: bool = False
+    offline: bool = False
 
     def verify(
         self,
@@ -288,6 +289,9 @@ class Validator:
         aggregator_ids: Sequence[int] | None = None,
         aggregator_secrets: Mapping[int, str] | None = None,
     ) -> VerificationResult:
+        if self.offline:
+            return VerificationResult(self.validator_id, False, "validator_offline", None)
+
         accepted, reason = verify_proposed_block(
             proposed_block,
             previous_hash,
@@ -396,7 +400,12 @@ class ValidatorCommittee:
         )
 
 
-def make_validators(count: int, byzantine_count: int = 0, accept_invalid: bool = True) -> list[Validator]:
+def make_validators(
+    count: int,
+    byzantine_count: int = 0,
+    accept_invalid: bool = True,
+    offline_count: int = 0,
+) -> list[Validator]:
     validators = []
     for idx in range(count):
         validators.append(
@@ -405,6 +414,7 @@ def make_validators(count: int, byzantine_count: int = 0, accept_invalid: bool =
                 secret=f"validator-secret-{idx}",
                 byzantine=idx < byzantine_count,
                 byzantine_accept_invalid=accept_invalid,
+                offline=(count - offline_count) <= idx,
             )
         )
     return validators

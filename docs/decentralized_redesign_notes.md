@@ -118,6 +118,7 @@ Generated tables:
 - `experiments_b_journal/paper_tables/validator_audit_valid_blocks.csv`
 - `experiments_b_journal/paper_tables/validator_audit_threshold_sensitivity.csv`
 - `experiments_b_journal/paper_tables/validator_audit_byzantine_boundary.csv`
+- `experiments_b_journal/paper_tables/validator_audit_liveness_dropout.csv`
 
 Current results:
 
@@ -136,6 +137,13 @@ Byzantine-boundary results:
 - With 7 validators and threshold 5, invalid proposals are rejected when 2 or 4 validators are Byzantine, but accepted when 5 Byzantine validators reach the signing threshold.
 
 This result should be reported as a security boundary, not as a weakness to hide. It clarifies exactly when the validator-backed protocol is meaningful.
+
+Liveness/dropout results:
+
+- With 5 validators and threshold 3, valid blocks finalize when at least 3 validators are online; finalization fails when only 2 validators remain available.
+- With 7 validators and threshold 5, valid blocks finalize when at least 5 validators are online; finalization fails when only 4 validators remain available.
+
+This should be reported as the liveness boundary of threshold finality. It complements the Byzantine-boundary table: one table explains when invalid blocks can be prevented, and the other explains when valid blocks can still be finalized.
 
 Tampering and protocol-fault scenarios:
 
