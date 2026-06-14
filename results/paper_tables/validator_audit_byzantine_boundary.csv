@@ -1,0 +1,8 @@
+validator_count,threshold,byzantine_validators,assumption_status,runs,valid_block_finalization_rate_mean,valid_block_finalization_rate_std,invalid_block_rejection_rate_mean,invalid_block_rejection_rate_std,invalid_block_acceptance_rate_mean,invalid_block_acceptance_rate_std,mean_valid_verification_time_ms,std_valid_verification_time_ms
+5,3,0,honest_committee,13,1.0,0.0,1.0,0.0,0.0,0.0,1.5942706411666363,0.042696457017310264
+5,3,1,within_assumption,13,1.0,0.0,1.0,0.0,0.0,0.0,1.632119327237328,0.053111864831111015
+5,3,2,within_assumption,13,1.0,0.0,1.0,0.0,0.0,0.0,1.6162420833634081,0.07145856804857922
+5,3,3,assumption_violated,13,1.0,0.0,0.0,0.0,1.0,0.0,1.6028779167521487,0.07412194138023272
+7,5,2,within_assumption,13,1.0,0.0,1.0,0.0,0.0,0.0,2.275273557876435,0.08343208538094574
+7,5,4,within_assumption,13,1.0,0.0,1.0,0.0,0.0,0.0,2.2776740066453782,0.08992261618492696
+7,5,5,assumption_violated,13,1.0,0.0,0.0,0.0,1.0,0.0,2.2316482373310302,0.04213946632980813

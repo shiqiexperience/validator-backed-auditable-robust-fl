@@ -19,6 +19,12 @@ Decentralized and blockchain-assisted FL is an established research direction.
 
 These works justify shifting the manuscript from "centralized robust FL with hash-chain logging" to "decentralized validator-backed auditable robust FL".
 
+Additional challenge mapping is maintained in:
+
+- `docs/decentralized_literature_gap_map.md`
+
+The main lesson from recent literature is that decentralization does not remove trust assumptions; it moves them from a central server to validators, miners, oracle nodes, identity management, and consensus finality. The revised paper should therefore make validator-threshold assumptions explicit and evaluate the boundary where those assumptions fail.
+
 ## Revised Core Claim
 
 Recommended new claim:
@@ -111,6 +117,7 @@ Generated tables:
 - `experiments_b_journal/paper_tables/validator_audit_tamper_per_run.csv`
 - `experiments_b_journal/paper_tables/validator_audit_valid_blocks.csv`
 - `experiments_b_journal/paper_tables/validator_audit_threshold_sensitivity.csv`
+- `experiments_b_journal/paper_tables/validator_audit_byzantine_boundary.csv`
 
 Current results:
 
@@ -122,6 +129,13 @@ Current results:
 - Invalid proposal rejection rate: 100%
 - Invalid proposal acceptance rate: 0%
 - Mean valid verification time with 5 validators and threshold 3: about 1.32 ms per block
+
+Byzantine-boundary results:
+
+- With 5 validators and threshold 3, invalid proposals are rejected when 0, 1, or 2 validators are Byzantine, but accepted when 3 Byzantine validators reach the signing threshold.
+- With 7 validators and threshold 5, invalid proposals are rejected when 2 or 4 validators are Byzantine, but accepted when 5 Byzantine validators reach the signing threshold.
+
+This result should be reported as a security boundary, not as a weakness to hide. It clarifies exactly when the validator-backed protocol is meaningful.
 
 Tampering and protocol-fault scenarios:
 
@@ -166,4 +180,3 @@ Possible title:
 > Decentralized Validator-Backed Auditable Robust Aggregation for Federated Learning Against Poisoning and Aggregator Tampering
 
 This title is stronger than the rejected version because it moves the contribution from simple hash-chain logging to role-separated finalization under an explicit dishonest-aggregator threat model.
-

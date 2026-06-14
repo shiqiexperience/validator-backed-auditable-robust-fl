@@ -287,6 +287,58 @@ def threshold_sensitivity(
     return rows
 
 
+def byzantine_boundary_sensitivity(
+    run_dirs: list[Path],
+    settings: list[tuple[int, int, int, str]],
+    aggregator_count: int,
+) -> list[dict[str, Any]]:
+    """Evaluate when invalid proposals become finalizable under validator collusion."""
+
+    rows = []
+    for validator_count, threshold, byzantine, assumption_status in settings:
+        setting_rows = []
+        for run_dir in run_dirs:
+            tamper_rows, metadata = evaluate_run(
+                run_dir,
+                validator_count,
+                threshold,
+                byzantine,
+                aggregator_count=aggregator_count,
+            )
+            acceptance_values = [float(row["invalid_block_acceptance_rate"]) for row in tamper_rows]
+            rejection_values = [float(row["invalid_block_rejection_rate"]) for row in tamper_rows]
+            setting_rows.append(
+                {
+                    "valid": metadata["valid_block_finalization_rate"],
+                    "acceptance": statistics.mean(acceptance_values) if acceptance_values else 0.0,
+                    "rejection": statistics.mean(rejection_values) if rejection_values else 0.0,
+                    "time": metadata["mean_valid_verification_time_ms"],
+                }
+            )
+        valid_mean, valid_std = mean_std([row["valid"] for row in setting_rows])
+        acceptance_mean, acceptance_std = mean_std([row["acceptance"] for row in setting_rows])
+        rejection_mean, rejection_std = mean_std([row["rejection"] for row in setting_rows])
+        time_mean, time_std = mean_std([row["time"] for row in setting_rows])
+        rows.append(
+            {
+                "validator_count": validator_count,
+                "threshold": threshold,
+                "byzantine_validators": byzantine,
+                "assumption_status": assumption_status,
+                "runs": len(setting_rows),
+                "valid_block_finalization_rate_mean": valid_mean,
+                "valid_block_finalization_rate_std": valid_std,
+                "invalid_block_rejection_rate_mean": rejection_mean,
+                "invalid_block_rejection_rate_std": rejection_std,
+                "invalid_block_acceptance_rate_mean": acceptance_mean,
+                "invalid_block_acceptance_rate_std": acceptance_std,
+                "mean_valid_verification_time_ms": time_mean,
+                "std_valid_verification_time_ms": time_std,
+            }
+        )
+    return rows
+
+
 def representative_runs(run_dirs: list[Path]) -> list[Path]:
     """Pick one latest run per suite/dataset/split/attack setting for threshold sweeps."""
 
@@ -347,6 +399,23 @@ def main() -> None:
     write_csv(
         out_dir / "validator_audit_threshold_sensitivity.csv",
         threshold_sensitivity(threshold_runs, settings, aggregator_count=args.aggregator_count),
+    )
+    boundary_settings = [
+        (5, 3, 0, "honest_committee"),
+        (5, 3, 1, "within_assumption"),
+        (5, 3, 2, "within_assumption"),
+        (5, 3, 3, "assumption_violated"),
+        (7, 5, 2, "within_assumption"),
+        (7, 5, 4, "within_assumption"),
+        (7, 5, 5, "assumption_violated"),
+    ]
+    write_csv(
+        out_dir / "validator_audit_byzantine_boundary.csv",
+        byzantine_boundary_sensitivity(
+            threshold_runs,
+            boundary_settings,
+            aggregator_count=args.aggregator_count,
+        ),
     )
 
     print(f"Evaluated validator-backed audit on {len(run_dirs)} runs")
