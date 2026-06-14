@@ -4,6 +4,7 @@
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{natbib}
+\usepackage{url}
 
 \graphicspath{{../experiments_b_journal/paper_figures/}{../experiments_b_journal/audit_case/fashion_noniid_signflip_proposed_s42/}}
 
@@ -11,7 +12,7 @@
 
 \begin{frontmatter}
 
-\title{Hash-Chain Auditable Reputation-Aware Robust Aggregation for Federated Learning Against Poisoning Attacks}
+\title{Decentralized Validator-Backed Auditable Robust Aggregation for Federated Learning Against Poisoning and Aggregator Tampering}
 
 \author[aff1]{Shiqi Huang\corref{cor1}}
 \ead{shiqihuang666@gmail.com}
@@ -20,10 +21,11 @@
 
 \begin{abstract}
 Federated learning enables collaborative training without centralizing private data, but malicious clients can poison model updates to degrade clean accuracy or implant backdoors. Existing Byzantine-robust aggregation rules mitigate many outliers, yet adaptive poisoning and Non-IID client data can weaken static filtering. For security-sensitive FL, aggregation decisions should also be auditable so that operators can reconstruct why a client update was accepted, down-weighted, or rejected. This paper proposes a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. The method scores each client update using magnitude deviation, directional consistency, and historical stability, combines the score with a smoothed reputation value, and performs dynamic weighted aggregation. Each round writes anomaly evidence, reputation changes, aggregation weights, model hashes, and global metrics to a tamper-evident hash chain. Experiments on Fashion-MNIST and CIFAR-10 cover IID and Dirichlet Non-IID settings under sign-flip, adaptive-scaling, and backdoor attacks. The proposed method prevents catastrophic poisoning failures, maintains low attack success rate (ASR), and achieves competitive clean accuracy against strong norm-filtering and trimmed-mean baselines.
+Federated learning enables collaborative training without centralizing private data, but malicious clients can poison model updates and centralized aggregation servers create an additional trust bottleneck. A hash chain maintained by the same server that computes anomaly scores and aggregation weights is insufficient against an insider aggregator, because the server can fabricate a self-consistent audit trail. This paper proposes a decentralized validator-backed auditable robust aggregation framework for federated learning under client poisoning and aggregator-side tampering. In each round, a publicly selected aggregator proposes a reputation-aware robust aggregation decision. Independent validators verify client commitments, aggregator authorization, score and weight consistency, hash linkage, and proposal integrity before a threshold-signed audit block is finalized. The aggregation rule scores each client update using magnitude deviation, directional consistency, and historical stability, combines the score with smoothed reputation, and performs dynamic weighted aggregation. Experiments on Fashion-MNIST and CIFAR-10 cover IID and Dirichlet Non-IID settings under sign-flip, adaptive-scaling, and backdoor attacks. The proposed method prevents catastrophic poisoning failures, maintains low attack success rate (ASR), and achieves competitive clean accuracy against norm-filtering and trimmed-mean baselines. Protocol-level experiments further show 100\% valid-block finalization, 100\% invalid-proposal rejection, 0\% invalid-proposal acceptance, and explicit Byzantine-validator and validator-dropout boundaries under threshold finality.
 \end{abstract}
 
 \begin{keyword}
-federated learning \sep poisoning attack \sep robust aggregation \sep hash-chain audit \sep reputation-aware defense \sep Byzantine robustness
+federated learning \sep poisoning attack \sep robust aggregation \sep validator committee \sep auditable aggregation \sep Byzantine robustness
 \end{keyword}
 
 \end{frontmatter}
@@ -34,18 +36,18 @@ Federated learning (FL) allows multiple clients to collaboratively train a globa
 
 This trust boundary enables poisoning attacks. Malicious clients can manipulate uploaded model updates to degrade global accuracy, trigger targeted misclassification, or bypass defenses that assume poisoned updates are simple outliers \citep{fang2020local,bagdasaryan2020backdoor,baruch2019little,cao2021fltrust}. Classical robust aggregation rules, including Krum, coordinate-wise Median, Trimmed Mean, Bulyan, and geometric median, were designed to tolerate Byzantine clients by filtering or reducing the effect of abnormal updates \citep{blanchard2017krum,yin2018byzantine,elmhamdi2018bulyan,pillutla2022rfa}. In Non-IID settings, the problem becomes harder because honest client updates may naturally differ from one another. This makes one-shot anomaly filtering vulnerable to both adaptive evasion and false rejection of honest clients.
 
-Robustness alone is not sufficient for security-sensitive FL. When a client update is rejected or assigned a near-zero aggregation weight, the system should preserve the evidence behind that decision so that operators can reconstruct the training process, diagnose attacks, and audit whether benign heterogeneous clients were unfairly suppressed. Blockchain-assisted FL has been proposed to improve transparency, incentive compatibility, privacy-oriented data sharing, and accountability \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,zhang2024bitfl,ren2024bpfl,awan2022blockchainflsurvey}. Nevertheless, simply recording model hashes or training metrics on chain does not directly improve robustness. A more useful role for the ledger layer is to maintain auditable client behavior histories and reputation records that influence future aggregation decisions.
+Robustness alone is not sufficient for security-sensitive FL. When a client update is rejected or assigned a near-zero aggregation weight, the system should preserve the evidence behind that decision so that operators can reconstruct the training process, diagnose attacks, and audit whether benign heterogeneous clients were unfairly suppressed. Blockchain-assisted and decentralized FL have been proposed to improve transparency, coordination, incentive compatibility, and accountability \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,zhang2024bitfl,ren2024bpfl,awan2022blockchainflsurvey,yuan2024dflsurvey,jiang2023blockflsurvey}. Nevertheless, simply recording model hashes or training metrics on chain does not directly improve robustness, and a hash chain controlled by the same aggregation server does not protect against aggregator-side insider manipulation. A more useful role for the ledger layer is to make the aggregation decision itself independently verifiable before it becomes part of the audit record.
 
 This requirement is practical rather than merely diagnostic. In multi-party FL deployments such as cross-institutional analytics, industrial Internet of Things, and collaborative edge intelligence, operators may need to investigate security incidents, justify client exclusion, and demonstrate that model-governance rules were applied consistently. A defense that only outputs a final aggregate cannot support this type of accountability.
 
-To address these issues, this paper proposes a hash-chain auditable adaptive robust aggregation framework. The key idea is to evaluate client updates through multiple signals and maintain persistent reputation records through a tamper-evident audit chain. Instead of permanently accepting or rejecting clients using a static threshold, the framework assigns dynamic aggregation weights based on both current anomaly scores and historical trust. This design aims to improve robustness against adaptive poisoning while keeping aggregation decisions reconstructable in heterogeneous FL environments.
+To address these issues, this paper proposes a decentralized validator-backed auditable robust aggregation framework. The key idea is to evaluate client updates through multiple signals while separating aggregation proposal from audit finalization. A round-specific aggregator proposes anomaly scores, reputation changes, aggregation weights, and model hashes, but the proposal is finalized only after independent validators verify the evidence and produce threshold signatures. Instead of permanently accepting or rejecting clients using a static threshold, the framework assigns dynamic aggregation weights based on both current anomaly scores and historical trust. This design aims to improve robustness against adaptive poisoning while making aggregation decisions reconstructable and resistant to unilateral manipulation by a dishonest aggregator.
 
 The main contributions are:
 \begin{enumerate}
   \item We formulate a multi-signal anomaly score for FL updates that combines norm deviation, directional consistency, and history stability under heterogeneous client data.
-  \item We design a hash-chain-backed reputation and audit mechanism that records the evidence behind aggregation weights, rather than logging only final model states.
+  \item We design a validator-backed audit mechanism that records the evidence behind aggregation weights and prevents a single aggregator from unilaterally finalizing the audit chain.
   \item We introduce a dynamic weighted aggregation rule that couples current anomaly evidence with historical reputation to reduce malicious influence while retaining useful benign Non-IID updates.
-  \item We provide a reproducible benchmark covering IID and Non-IID data, multiple poisoning attacks, three random seeds for the main Fashion-MNIST and CIFAR-10 Non-IID settings, malicious-ratio sensitivity, audit reconstruction, and overhead measurement.
+  \item We provide a reproducible benchmark covering IID and Non-IID data, multiple poisoning attacks, three random seeds for the main Fashion-MNIST and CIFAR-10 Non-IID settings, malicious-ratio sensitivity, audit reconstruction, invalid-proposal rejection, Byzantine-validator boundaries, validator-dropout liveness, and overhead measurement.
 \end{enumerate}
 
 \section{Related Work}
@@ -66,38 +68,44 @@ Robust aggregation methods such as Krum, Median, Trimmed Mean, Bulyan, and geome
 
 Trust and reputation mechanisms are attractive in FL because poisoning behavior unfolds over rounds rather than in a single isolated upload. FLTrust uses a server-side root dataset to construct a trusted reference direction \citep{cao2021fltrust}, while FoolsGold uses update similarity to reduce the influence of Sybil-style attackers \citep{fung2020foolsgold}. Blockchain-assisted FL systems also frequently incorporate incentives or punishment records to discourage low-quality or malicious updates \citep{lu2020blockchain,zhang2024bitfl,ren2024bpfl}. However, trust signals must be handled carefully under Non-IID data: a benign client with rare classes may appear directionally unusual, while an adaptive attacker may keep update norms close to benign statistics. This motivates reputation updates that combine current anomaly evidence with historical behavior rather than relying on a single trust cue.
 
-\subsection{Blockchain-Assisted and Hash-Chain Auditable Federated Learning}
+\subsection{Blockchain-Assisted, Decentralized, and Validator-Backed Federated Learning}
 
-Blockchain can provide tamper-resistant logging, decentralized coordination, incentives, and accountability. Recent blockchain-assisted FL studies increasingly connect ledger records with secure aggregation, industrial data sharing, incentive mechanisms, and malicious-client punishment \citep{lu2020blockchain,nguyen2021blockchainedge,dong2024blockchain,zhang2024bitfl,ren2024bpfl,awan2022blockchainflsurvey}. The present work focuses on the auditable logging and reputation-history component of that broader design space. In particular, it studies whether hash-linked evidence about past client behavior can be coupled with adaptive robust aggregation, a question that remains underexplored in many blockchain-assisted FL systems.
+Blockchain can provide tamper-resistant logging, decentralized coordination, incentives, and accountability. Early decentralized and blockchain-assisted FL systems such as Biscotti, BLADE-FL, and BlockDFL show that ledger-based coordination can reduce dependence on a trusted central server \citep{shayan2018biscotti,li2021bladefl,qin2022blockdfl}. Surveys of decentralized and blockchained FL further identify topology, communication, privacy, data heterogeneity, trust management, and compatibility overhead as central challenges \citep{yuan2024dflsurvey,jiang2023blockflsurvey,hallaji2024dflsecurity}. Recent blockchain-FL defenses increasingly connect ledger records with poisoning detection, robust aggregation, validators, and consensus mechanisms \citep{dong2024blockchain,garcia2025kfc,carney2025fidelis,bouchiha2026abc}.
+
+Committee-based designs are particularly relevant. BFLC uses committee consensus to reduce consensus cost in blockchain-based FL, while VBFL introduces validator-based local-model validation and proof-of-stake-inspired consensus \citep{li2020bflc,chen2021vbfl}. These designs show that validators should not only store blocks but also check model or update legitimacy. At the same time, BFT consensus literature makes clear that safety and liveness depend on explicit fault bounds, validator availability, and communication overhead \citep{zhang2022bftsurvey,alqahtani2021bottlenecks}. Committee selection also creates security questions, including Sybil resistance, validator collusion, and static-committee capture \citep{rajab2020sybil}. The present work focuses on this narrower but important point: making robust aggregation decisions independently verifiable before they are finalized into an audit chain.
 
 \subsection{Research Gap}
 
-Existing robust aggregation rules mainly optimize the current-round aggregate, while ledger-assisted FL often treats the ledger as a storage, incentive, or coordination layer. These two lines of work are complementary but not tightly coupled. A rejected or down-weighted update should be explainable after training: the system should record which anomaly signals were observed, how reputation changed, and how those signals affected the final aggregation weight. The gap addressed in this paper is therefore not a new standalone norm filter and not a full blockchain deployment. The contribution is the coupling of multi-signal anomaly scoring, persistent reputation-aware weighting, and hash-chain audit records so that robustness decisions are both operational during training and reconstructable afterward.
+Existing robust aggregation rules mainly optimize the current-round aggregate, while ledger-assisted FL often treats the ledger as a storage, incentive, or coordination layer. These two lines of work are complementary but not tightly coupled. A rejected or down-weighted update should be explainable after training: the system should record which anomaly signals were observed, how reputation changed, and how those signals affected the final aggregation weight. More importantly, if the aggregator itself may be dishonest, the evidence ledger cannot be finalized solely by that same aggregator. The gap addressed in this paper is therefore not a new standalone norm filter and not a full production blockchain deployment. The contribution is the coupling of multi-signal anomaly scoring, persistent reputation-aware weighting, client commitments, rotating aggregator proposals, validator verification, and threshold-finalized audit records so that robustness decisions are both operational during training and independently reconstructable afterward.
 
 \section{Threat Model and Problem Definition}
 
-We consider an FL system with one aggregation server and $N$ clients. At communication round $t$, the server broadcasts the current global model parameters $w_t$. A selected client $i$ trains locally on its private dataset $D_i$ and returns a local model $w_{t,i}$ or, equivalently, an update vector
+We consider a permissioned consortium FL system with $N$ clients, a set of eligible round aggregators, and a validator committee $\mathcal{V}$ of size $m$. At communication round $t$, the current global model parameters $w_t$ are made available to selected clients. Client $i$ trains locally on its private dataset $D_i$ and returns a local model $w_{t,i}$ or, equivalently, an update vector
 \begin{equation}
 u_{t,i}=\mathrm{vec}(w_{t,i}-w_t),
 \end{equation}
-where $\mathrm{vec}(\cdot)$ denotes concatenation of all floating-point model parameters. Client $i$ has $n_i=|D_i|$ training samples. A subset $\mathcal{M}_t$ of clients may be malicious. Malicious clients can poison their uploaded model updates, collude with each other, and adapt update magnitudes to evade simple norm-based thresholds. The server can evaluate update metadata and maintain an auditable chain, but it does not access clients' raw data.
+where $\mathrm{vec}(\cdot)$ denotes concatenation of all floating-point model parameters. Client $i$ has $n_i=|D_i|$ training samples. A subset $\mathcal{M}_t$ of clients may be malicious. Malicious clients can poison uploaded model updates, collude with each other, and adapt update magnitudes to evade simple norm-based thresholds.
+
+The aggregation role is not assumed to be permanently trusted. A public leader-selection rule chooses a round aggregator for each round. The selected aggregator proposes anomaly scores, reputation updates, aggregation weights, model hashes, and an audit payload. A dishonest aggregator may alter scores, change aggregation weights, omit clients, introduce fake clients, modify model hashes, equivocate across proposals, or attempt to finalize a self-serving audit record. The aggregator can propose a block but cannot finalize it alone.
+
+Validators are permissioned entities that verify proposed audit blocks. A block is finalized only if at least $q$ validators sign it. We consider Byzantine validators that may sign invalid proposals and offline validators that do not respond. The protocol's safety is meaningful when fewer than $q$ validators sign an invalid proposal; if $q$ Byzantine or lazy validators collude to sign an invalid proposal, threshold finality can be subverted, although the signatures provide accountability evidence. Liveness requires at least $q$ available validators. This work therefore claims threshold-finalized auditability under explicit committee assumptions, not unconditional security against validator-majority collusion or permissionless Sybil attacks.
 
 The defense objective is to compute aggregation weights $a_{t,i}$ such that malicious influence is reduced while benign updates remain useful under Non-IID data. The aggregated model is
 \begin{equation}
 \beta_{t,i}=\frac{a_{t,i}n_i}{\sum_j a_{t,j}n_j}, \qquad
 w_{t+1}=\sum_i \beta_{t,i}w_{t,i}.
 \end{equation}
-When $a_{t,i}=0$, client $i$ has no influence on the round. When all weights become zero, the implementation falls back to the lowest-anomaly fraction of clients to avoid a stalled round. In addition to utility and robustness, the system must preserve an auditable record of the evidence and decision that produced each $a_{t,i}$.
+When $a_{t,i}=0$, client $i$ has no influence on the round. When all weights become zero, the implementation falls back to the lowest-anomaly fraction of clients to avoid a stalled round. In addition to utility and robustness, the system must preserve an auditable record of the evidence and decision that produced each $a_{t,i}$, and that record must be verifiable by parties other than the aggregator that proposed it.
 
 \section{Proposed Method}
 
 \subsection{Overview}
 
-Each communication round contains five steps. The server broadcasts the current global model. Clients train locally and submit model updates. The server computes anomaly signals for each update. Reputation-aware aggregation weights are computed. Finally, the server aggregates updates and records the round into the audit chain.
+Each communication round contains five steps. First, clients train locally and submit signed commitments to their updates. Second, a public rule selects the round aggregator from the eligible aggregator set. Third, the selected aggregator computes anomaly signals, reputation updates, and aggregation weights, then proposes an audit block containing the decision evidence. Fourth, validators independently verify client commitments, aggregator authorization, score and weight consistency, hash linkage, and proposal integrity. Finally, the audit block is finalized only if at least $q$ validators sign it. This separates decision proposal from audit finalization: the aggregator can compute and propose the robust aggregation decision, but the validator committee controls whether the decision becomes part of the finalized audit chain.
 
 \subsection{Multi-Signal Anomaly Score}
 
-For each round, the server computes the update norm
+For each round, the selected aggregator computes the update norm
 \begin{equation}
 r_{t,i}=\lVert u_{t,i}\rVert_2.
 \end{equation}
@@ -132,7 +140,7 @@ For a new client without history, $z^h_{t,i}=0$. The final anomaly score is
 A_{t,i}=0.45z^n_{t,i}+0.35z^d_{t,i}+0.20z^h_{t,i}.
 \end{equation}
 
-\subsection{Hash-Chain-Backed Reputation}
+\subsection{Reputation and Client Commitments}
 
 Each client has a reputation value $R_{t,i}$ initialized as $R_{0,i}=1$. After computing anomaly score $A_{t,i}$, reputation is updated by exponential smoothing:
 \begin{equation}
@@ -140,18 +148,30 @@ R_{t+1,i}=\mathrm{clip}\left(0.85R_{t,i}+0.15\exp(-A_{t,i}),0.05,1.5\right).
 \end{equation}
 The clipping interval prevents permanent reputation collapse. It also bounds the maximum advantage of a client with consistently benign behavior.
 
-Let $P_t$ denote the round payload containing model hash, metrics, client metadata, anomaly scores, reputation values, and aggregation weights. Each audit block is
+Each client also signs a lightweight commitment containing round ID, client ID, update hash, sample count, and metadata hash. The commitment is not intended to reveal raw data or store full model updates on chain. Its purpose is to prevent a dishonest aggregator from inventing a client update, silently changing client metadata, or omitting submitted evidence without leaving a detectable mismatch between client commitments and the proposed audit payload.
+
+\subsection{Aggregator Proposal and Validator Finality}
+
+Let $P_t$ denote the round payload containing model hash, metrics, client metadata, anomaly scores, reputation values, aggregation weights, and client commitments. The eligible aggregator for round $t$ is selected by a public deterministic rule in the current implementation:
+\begin{equation}
+g_t=\mathrm{sorted}(\mathcal{G})[(t-1)\bmod |\mathcal{G}|],
+\end{equation}
+where $\mathcal{G}$ is the permissioned aggregator set. The round-robin rule is used for reproducibility in the simulator. It can be replaced in deployment by a BFT leader-rotation rule, verifiable randomness, or a reputation-aware selection mechanism.
+
+The selected aggregator signs a proposal containing the round number, aggregator ID, previous block hash, payload hash, and proposal hash. Validators then check: (i) the previous hash matches the latest finalized block; (ii) the payload hash and proposal hash are correct; (iii) the aggregator is eligible for the round and its signature is valid; (iv) client commitments match the client records and signatures; (v) the client, decision, and commitment sets are consistent; and (vi) rejection flags and aggregation weights are internally consistent with the recorded decision evidence.
+
+Each finalized audit block is
 \begin{equation}
 B_t=(t,\mathrm{timestamp}_t,h_{t-1},P_t), \qquad
 h_t=\mathrm{SHA256}(\mathrm{canonical\_json}(B_t)).
 \end{equation}
-The next block stores $h_t$ as its previous hash. Verification checks both hash correctness and hash linkage from the genesis hash to the final block.
+The next block stores $h_t$ as its previous hash. Verification checks both hash correctness and hash linkage from the genesis hash to the final block. In the validator-backed design, $B_t$ is finalized only after at least $q$ validators accept and sign the proposal.
 
-The implemented audit layer is a tamper-evident hash chain that models the audit component of a blockchain-assisted FL system. It does not implement consensus, validator incentives, smart-contract execution, or gas accounting. This design isolates the core scientific question of whether aggregation decisions can be made reconstructable and verifiable.
+The implemented audit layer is a permissioned threshold-finality simulation that models the audit component of a blockchain-assisted FL system. It does not implement full PBFT/HotStuff/Tendermint message flow, view change, networking, validator incentives, smart-contract execution, or gas accounting. This scope isolates the core scientific question of whether robust aggregation decisions can be made reconstructable and independently verifiable under client poisoning and aggregator-side tampering.
 
 \subsection{Dynamic Weighted Aggregation}
 
-The server first applies hard-rejection rules. Client $i$ is hard rejected if any of the following conditions holds:
+The selected aggregator first applies hard-rejection rules. Client $i$ is hard rejected if any of the following conditions holds:
 \begin{equation}
 A_{t,i}>\tau_A,\qquad
 z^n_{t,i}>\tau_n \ \mathrm{and}\ d_{t,i}<0,\qquad
@@ -165,9 +185,9 @@ where $a_{\min}=0$ and $\gamma=1.2$ in the formal experiments. If the hard-rejec
 
 \subsection{Security and Audit Interpretation}
 
-The proposed framework provides tamper-evident decision traceability rather than a cryptographic proof that every malicious client is detected. For each round, the audit payload records the evidence used by the aggregation rule: update hashes, anomaly scores, reputation values before and after smoothing, hard-rejection flags, raw aggregation weights, normalized aggregation coefficients, and global evaluation metrics. Because the block hash is computed over a canonical representation of this payload and linked to the previous block hash, any post-hoc modification of a past decision changes the corresponding block hash and breaks the subsequent chain linkage.
+The proposed framework provides validator-backed decision traceability rather than a cryptographic proof that every malicious client is detected. For each round, the audit payload records the evidence used by the aggregation rule: update hashes, anomaly scores, reputation values before and after smoothing, hard-rejection flags, raw aggregation weights, normalized aggregation coefficients, and global evaluation metrics. Because the block hash is computed over a canonical representation of this payload and linked to the previous block hash, any post-hoc modification of a past decision changes the corresponding block hash and breaks the subsequent chain linkage. Because the proposal is finalized only with validator signatures, a single dishonest aggregator cannot unilaterally rewrite or finalize its own audit trail.
 
-The audit record supports three verification tasks. First, an auditor can recompute the hash chain to check whether the recorded training history has been modified. Second, given the stored round payload, the auditor can reconstruct why a client received zero, reduced, or full aggregation influence. Third, the auditor can compare per-client weight histories with attack labels in controlled experiments, or with incident reports in a deployment setting. These checks are useful for accountability and forensic analysis, but they do not replace secure aggregation, differential privacy, trusted execution, or blockchain consensus. Those mechanisms address different security goals and can be layered with the proposed aggregation logic in future deployments.
+The audit record supports four verification tasks. First, an auditor can recompute the hash chain to check whether the recorded training history has been modified. Second, given the stored round payload, the auditor can reconstruct why a client received zero, reduced, or full aggregation influence. Third, validators can reject invalid proposals from unauthorized or dishonest aggregators before finality. Fourth, an auditor can inspect validator signatures and rejected votes to identify which validators approved or rejected a proposal. These checks are useful for accountability and forensic analysis, but they do not replace secure aggregation, differential privacy, trusted execution, full blockchain consensus, or permissionless identity management. Those mechanisms address different security goals and can be layered with the proposed aggregation logic in future deployments.
 
 \subsection{Decision Semantics and Audit Evaluation Protocol}
 
@@ -205,19 +225,19 @@ Fallback fraction & 0.5 & Lowest-anomaly fallback fraction \\
 
 \subsection{Algorithm}
 
-\noindent\textbf{Algorithm 1: Hash-chain auditable reputation-aware aggregation.}
-Given the current global model $w_t$, client models $\{w_{t,i}\}$, sample counts $\{n_i\}$, reputation table $\{R_{t,i}\}$, and previous updates $\{u_{t-1,i}\}$:
+\noindent\textbf{Algorithm 1: Validator-backed auditable robust aggregation.}
+Given the current global model $w_t$, client models $\{w_{t,i}\}$, sample counts $\{n_i\}$, reputation table $\{R_{t,i}\}$, previous updates $\{u_{t-1,i}\}$, eligible aggregators $\mathcal{G}$, validator committee $\mathcal{V}$, threshold $q$, and previous finalized hash $h_{t-1}$:
 \begin{enumerate}
-  \item Compute update vectors $u_{t,i}$ and norms $r_{t,i}$.
-  \item Compute the median norm center $c_t$, MAD scale $s_t$, and mean update $\bar{u}_t$.
-  \item Compute norm, direction, and history anomaly scores for each client.
-  \item Update reputation values $R_{t+1,i}$.
-  \item Compute hard-rejection decisions and aggregation weights $a_{t,i}$.
-  \item If all weights are zero, select the lowest-anomaly fallback clients.
-  \item Aggregate $w_{t+1}$ using sample-size-normalized weights.
-  \item Append an audit block containing hashes, metrics, anomaly evidence, reputation values, aggregation weights, and rejection decisions.
+  \item Each selected client submits a signed commitment over round ID, client ID, update hash, sample count, and metadata hash.
+  \item Select the round aggregator $g_t$ using the public aggregator-selection rule.
+  \item The aggregator computes update vectors $u_{t,i}$, norms $r_{t,i}$, median norm center $c_t$, MAD scale $s_t$, and mean update $\bar{u}_t$.
+  \item The aggregator computes norm, direction, and history anomaly scores for each client.
+  \item The aggregator updates reputation values $R_{t+1,i}$, computes hard-rejection decisions and aggregation weights $a_{t,i}$, and applies fallback selection if all raw weights are zero.
+  \item The aggregator computes $w_{t+1}$ using sample-size-normalized weights and proposes an audit block containing hashes, metrics, anomaly evidence, reputation values, aggregation weights, rejection decisions, client commitments, and aggregator signature.
+  \item Each validator verifies client commitments, aggregator eligibility, proposal signature, hash linkage, required decision fields, and aggregation-weight consistency.
+  \item If at least $q$ validators accept and sign the proposal, finalize the audit block and set $h_t$ to the finalized block hash; otherwise the block remains unfinalized and the round requires recovery.
 \end{enumerate}
-The output is the updated global model, reputation table, previous-update cache, and audit hash.
+The output is the updated global model, reputation table, previous-update cache, validator-signed audit block, and finalized audit hash.
 
 \section{Experimental Setup}
 
@@ -233,7 +253,7 @@ FLTrust and FLAME are discussed as closely related defenses but are not included
 
 \subsection{Metrics and Reproducibility}
 
-The evaluation metrics include clean accuracy, best clean accuracy, test loss, attack success rate (ASR), rejection or zero-weight rate, chain validity, and runtime. Rejection-based metrics should be interpreted as aggregation decisions rather than perfect malicious-client detection labels. For auditability, we further report objective metrics: chain verification rate, simulated tamper-detection rate, decision reconstruction rate, malicious suppression rate, benign retention rate, and benign--malicious aggregation-weight gap. These metrics are computed from the recorded audit logs rather than manually assigned after training.
+The evaluation metrics include clean accuracy, best clean accuracy, test loss, attack success rate (ASR), rejection or zero-weight rate, chain validity, and runtime. Rejection-based metrics should be interpreted as aggregation decisions rather than perfect malicious-client detection labels. For auditability, we further report objective metrics: chain verification rate, simulated tamper-detection rate, decision reconstruction rate, malicious suppression rate, benign retention rate, and benign--malicious aggregation-weight gap. For validator-backed finality, we report valid-block finalization rate, aggregator-authorization verification rate, invalid-proposal rejection rate, invalid-proposal acceptance rate, Byzantine-boundary behavior, validator-dropout liveness, and verification latency. These metrics are computed from the recorded audit logs and protocol simulations rather than manually assigned after training.
 
 All formal result tables are generated from the consolidated summary CSV using deterministic table-export scripts. The scripts keep the latest run for each experiment name and exclude smoke tests, tuning diagnostics, and extended exploratory attacks. Figures and audit-case materials are generated by the corresponding export scripts in the \texttt{experiments/} directory.
 
@@ -364,6 +384,73 @@ All proposed runs & 39 / 3600 / 36000 & 100.00 $\pm$ 0.00\% & 100.00 $\pm$ 0.00\
 \label{fig:audit-clients}
 \end{figure}
 
+\subsection{Validator-Backed Finality Under Aggregator Tampering}
+
+The preceding audit metrics evaluate whether recorded aggregation decisions can be reconstructed after training. We next evaluate whether a dishonest aggregator can finalize manipulated audit evidence. The validator-backed protocol is tested on the latest 39 formal proposed-method runs, covering 3600 valid audit blocks. For each valid block, we generate invalid proposals by tampering with score fields, aggregation weights, client records, model hashes, previous hashes, client signatures, payload hashes, aggregator authorization, aggregator signatures, and equivocation-style proposal content.
+
+Table~\ref{tab:validator-tamper} summarizes the protocol-security result. Valid proposals finalize in all cases, while all tested invalid proposals are rejected before finality. The invalid-proposal acceptance rate is 0\%. This result addresses the core security distinction between a single-server hash chain and validator-backed audit finality: the aggregator can propose a decision, but it cannot unilaterally finalize a manipulated evidence record.
+
+\begin{table}[t]
+\centering
+\caption{Validator-backed finality under aggregator and payload tampering. Values summarize 39 proposed-method runs and 3600 valid audit blocks.}
+\label{tab:validator-tamper}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Scenario group & Runs & Tampered blocks & Valid finalization & Invalid rejection & Invalid acceptance \\
+\midrule
+Score/weight/payload tampering & 39 & 32400 & 100.00\% & 100.00\% & 0.00\% \\
+Aggregator authorization/signature/equivocation tampering & 39 & 10800 & 100.00\% & 100.00\% & 0.00\% \\
+All invalid proposals & 39 & 43200 & 100.00\% & 100.00\% & 0.00\% \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Threshold finality is not unconditional. It depends on the number of validators that are honest and available. Table~\ref{tab:byzantine-boundary} reports the Byzantine-validator boundary. With five validators and threshold three, invalid proposals are rejected when zero, one, or two validators are Byzantine, but accepted when three Byzantine validators reach the signing threshold. With seven validators and threshold five, the same boundary appears when five Byzantine validators sign invalid proposals. This table is intentionally reported because it makes the trust assumption explicit: the protocol prevents unilateral aggregator manipulation, but it cannot withstand a signing threshold of colluding validators.
+
+\begin{table}[t]
+\centering
+\caption{Byzantine-validator boundary for threshold finality. Values are means over 13 representative runs.}
+\label{tab:byzantine-boundary}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rrrrrr}
+\toprule
+Validators & Threshold & Byzantine validators & Valid finalization & Invalid rejection & Invalid acceptance \\
+\midrule
+5 & 3 & 0 & 100.00\% & 100.00\% & 0.00\% \\
+5 & 3 & 1 & 100.00\% & 100.00\% & 0.00\% \\
+5 & 3 & 2 & 100.00\% & 100.00\% & 0.00\% \\
+5 & 3 & 3 & 100.00\% & 0.00\% & 100.00\% \\
+7 & 5 & 2 & 100.00\% & 100.00\% & 0.00\% \\
+7 & 5 & 4 & 100.00\% & 100.00\% & 0.00\% \\
+7 & 5 & 5 & 100.00\% & 0.00\% & 100.00\% \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Table~\ref{tab:liveness} reports the corresponding liveness boundary under validator dropout. Valid blocks continue to finalize as long as the number of online validators reaches the threshold. Once the available validator count falls below threshold, valid-block finalization fails. This is a liveness failure rather than a poisoning-defense failure, and it clarifies the availability assumption required by the committee design.
+
+\begin{table}[t]
+\centering
+\caption{Validator-dropout liveness boundary. Values are means over 13 representative runs.}
+\label{tab:liveness}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rrrrrr}
+\toprule
+Validators & Threshold & Offline validators & Available validators & Valid finalization & Valid failure \\
+\midrule
+5 & 3 & 0 & 5 & 100.00\% & 0.00\% \\
+5 & 3 & 1 & 4 & 100.00\% & 0.00\% \\
+5 & 3 & 2 & 3 & 100.00\% & 0.00\% \\
+5 & 3 & 3 & 2 & 0.00\% & 100.00\% \\
+7 & 5 & 0 & 7 & 100.00\% & 0.00\% \\
+7 & 5 & 1 & 6 & 100.00\% & 0.00\% \\
+7 & 5 & 2 & 5 & 100.00\% & 0.00\% \\
+7 & 5 & 3 & 4 & 0.00\% & 100.00\% \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
 \subsection{Runtime and Audit Overhead}
 
 \begin{table}[t]
@@ -386,31 +473,35 @@ CIFAR-10 & Proposed & 9 & 18.719 & 0.0797 & 771.21 \\
 
 The proposed method records more per-client information than ordinary robust aggregation baselines, so its audit log is larger. The runtime overhead is moderate in the current implementation. On Fashion-MNIST, the proposed method averages 1.788 s per round, compared with 1.434 s for norm filtering. On CIFAR-10, the proposed method averages 18.719 s per round, close to norm filtering at 18.550 s. The average defense computation time is small relative to total round time. These results indicate that the main cost of the proposed approach is richer audit logging rather than a large increase in aggregation computation.
 
+Validator verification also remains lightweight in the protocol simulation. In the default setting with five validators and threshold three, valid proposal verification takes approximately 1.3--1.6 ms per block depending on the evaluation sweep. Increasing the committee size to seven validators raises verification time to approximately 1.8--2.3 ms per block. These measurements cover local cryptographic checks, commitment verification, proposal consistency checks, and threshold-finality simulation; they do not include real network propagation, mempool ordering, view-change, or smart-contract execution.
+
 \subsection{Implications for Secure Federated Learning}
 
-The empirical results support a security-system interpretation rather than a pure accuracy-ranking interpretation. Robustness and auditability are related but distinct goals. Robust aggregation reduces the immediate influence of suspicious updates, while auditability preserves the evidence needed to explain, reproduce, and challenge those decisions after training. A deployment in which operators must investigate incidents, justify client exclusion, or reproduce model-governance records may reasonably prefer a slightly less accurate but auditable defense over a purely filtering-based rule.
+The empirical results support a security-system interpretation rather than a pure accuracy-ranking interpretation. Robustness and auditability are related but distinct goals. Robust aggregation reduces the immediate influence of suspicious updates, while validator-backed auditability preserves and verifies the evidence needed to explain, reproduce, and challenge those decisions after training. A deployment in which operators must investigate incidents, justify client exclusion, or reproduce model-governance records may reasonably prefer a slightly less accurate but auditable defense over a purely filtering-based rule.
 
 This trade-off is relevant to information-security applications where training participants belong to different organizations or administrative domains. In such settings, an aggregation decision can affect future participation, trust, and accountability. Recording the evidence behind down-weighting or exclusion therefore supports not only technical debugging but also operational review and dispute resolution.
 
 The results also show why Non-IID FL complicates security decisions. Honest clients can produce unusual update directions because their local data are not representative of the global distribution. A defense that treats every deviation as malicious risks suppressing useful minority-client information. Conversely, adaptive attackers can exploit this tolerance by making poisoned updates look statistically plausible. The proposed method addresses this tension by combining norm, direction, history, and reputation signals, but the experiments show that this combination should be viewed as a practical trade-off rather than a complete solution.
 
-Finally, the audit overhead results suggest that richer traceability is feasible in the evaluated simulator. The additional defense computation is small relative to training time, especially on CIFAR-10, while the audit log remains modest in absolute size. In a production blockchain or permissioned-ledger deployment, consensus and storage replication would add costs beyond those measured here. Therefore, the present results should be interpreted as evidence for the feasibility of auditable aggregation logic, not as a full end-to-end blockchain performance evaluation.
+Finally, the audit overhead results suggest that richer traceability is feasible in the evaluated simulator. The additional defense computation is small relative to training time, especially on CIFAR-10, while the audit log remains modest in absolute size. The validator experiments further clarify the security boundary: threshold finality prevents unilateral aggregator tampering, but it depends on fewer than $q$ validators signing invalid proposals and at least $q$ validators being online for liveness. In a production blockchain or permissioned-ledger deployment, consensus networking, storage replication, view-change, validator selection, and incentive enforcement would add costs beyond those measured here. Therefore, the present results should be interpreted as evidence for the feasibility of validator-backed auditable aggregation logic, not as a full end-to-end blockchain performance evaluation.
 
 \section{Limitations and Future Work}
 
-The current experiments support the claim that the proposed method is auditable and robustly competitive, but they also reveal important limitations. First, the method is not uniformly clean-accuracy superior to strong filtering baselines. Norm filtering is particularly strong on CIFAR-10 Non-IID, and Trimmed Mean performs best in the Fashion-MNIST malicious-ratio sensitivity experiment. Second, the current benchmark treats FLTrust and FLAME as related-work references rather than empirical baselines. Adding faithful implementations of these methods would strengthen future comparisons. Third, the present audit chain is an experimental hash-linked log rather than a full production blockchain deployment with consensus, gas cost, and smart-contract execution overhead. A deployment-focused extension should evaluate those costs separately.
+The current experiments support the claim that the proposed method is auditable and robustly competitive, but they also reveal important limitations. First, the method is not uniformly clean-accuracy superior to strong filtering baselines. Norm filtering is particularly strong on CIFAR-10 Non-IID, and Trimmed Mean performs best in the Fashion-MNIST malicious-ratio sensitivity experiment. Second, the current benchmark treats FLTrust and FLAME as related-work references rather than empirical baselines. Adding faithful implementations of these methods would strengthen future comparisons. Third, the present validator-backed audit layer is a permissioned threshold-finality simulation rather than a full production blockchain deployment with networking consensus, view change, gas cost, smart-contract execution, or validator incentives. A deployment-focused extension should evaluate those costs separately.
 
-Future work should focus on adding stronger recent baselines, improving the proposed method's CIFAR-10 clean accuracy without sacrificing auditability, and extending the audit layer to a realistic blockchain or permissioned ledger implementation.
+The committee model also has explicit security limits. If a signing threshold of validators colludes or lazily signs invalid proposals, threshold finality cannot prevent invalid block finalization, although the signed votes provide accountability evidence. If too few validators are online, valid blocks cannot finalize. The current design assumes permissioned validator identities and does not implement permissionless Sybil resistance, slashing, stake economics, randomized committee sampling, or validator reputation. These mechanisms are natural extensions but should not be implied by the present simulator.
+
+Future work should focus on adding stronger recent baselines, improving the proposed method's CIFAR-10 clean accuracy without sacrificing auditability, adding DFL-specific collusive poisoning attacks, and extending the audit layer to a realistic blockchain or permissioned ledger implementation with validator selection, liveness recovery, and incentive enforcement.
 
 \section{Conclusion}
 
-This paper presents a hash-chain auditable, reputation-aware robust aggregation framework for federated learning under poisoning attacks. By combining multi-signal anomaly scoring, hash-chain-backed reputation, and dynamic weighted aggregation, the framework makes aggregation decisions reconstructable while maintaining competitive robustness in heterogeneous FL environments. The experiments show that the method prevents catastrophic poisoning failures and maintains low ASR, but the results also show that norm filtering and Trimmed Mean remain strong baselines. The contribution should therefore be understood as auditable and competitive robustness rather than universal clean-accuracy dominance.
+This paper presents a decentralized validator-backed auditable robust aggregation framework for federated learning under poisoning attacks and aggregator-side tampering. By combining multi-signal anomaly scoring, reputation-aware weighting, client commitments, rotating aggregator proposals, and threshold validator finality, the framework makes aggregation decisions reconstructable while preventing a single aggregator from unilaterally finalizing manipulated audit evidence. The experiments show that the method prevents catastrophic poisoning failures and maintains low ASR, but the results also show that norm filtering and Trimmed Mean remain strong clean-accuracy baselines. Protocol-level experiments show that invalid proposals are rejected under the validator-threshold assumption and that liveness depends on sufficient validator availability. The contribution should therefore be understood as auditable and competitive robust aggregation with explicit validator-backed security boundaries rather than universal clean-accuracy dominance or a complete production blockchain deployment.
 
 \section{Declarations}
 
 \subsection{Data and Code Availability}
 
-The experiments use public image benchmark datasets: MNIST, Fashion-MNIST, and CIFAR-10. The experimental scripts, generated manifests, summary tables, figures, and audit logs are maintained with the project repository. Formal result tables are generated from the consolidated summary CSV using deterministic export scripts, and the audit case study is generated from the recorded per-round and per-client logs. A cleaned reproducibility package containing the paper-specific code, configurations, and analysis scripts will be made available in a public repository upon publication or from the corresponding author upon reasonable request.
+The experiments use public image benchmark datasets: MNIST, Fashion-MNIST, and CIFAR-10. The experimental scripts, generated manifests, summary tables, figures, and audit logs are maintained with the project repository. Formal result tables are generated from the consolidated summary CSV using deterministic export scripts, and the audit case study is generated from the recorded per-round and per-client logs. A cleaned reproducibility package containing the paper-specific code, configurations, and analysis scripts is available at \url{https://github.com/shiqiexperience/hashchain-auditable-robust-fl}.
 
 \subsection{Funding}
 
@@ -422,7 +513,7 @@ The author declares that there are no known competing financial interests or per
 
 \subsection{Ethics and Security Scope}
 
-This study uses public benchmark datasets and does not involve human subjects or private client data. The threat model focuses on poisoning robustness and reconstructable aggregation decisions in federated learning. Privacy leakage, secure aggregation protocols, adversarial consensus, smart-contract vulnerabilities, and economic incentive attacks are outside the scope of the current implementation and should be evaluated separately in a full deployment study.
+This study uses public benchmark datasets and does not involve human subjects or private client data. The threat model focuses on poisoning robustness, aggregator-side tampering, validator-backed finality, and reconstructable aggregation decisions in federated learning. Privacy leakage, secure aggregation protocols, permissionless Sybil resistance, full adversarial consensus networking, smart-contract vulnerabilities, and economic incentive attacks are outside the scope of the current implementation and should be evaluated separately in a full deployment study.
 
 \subsection{Declaration of Generative AI and AI-Assisted Technologies}
 
