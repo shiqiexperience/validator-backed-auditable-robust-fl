@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite the associated manuscript."
-title: "Hash-Chain Auditable Reputation-Aware Robust Aggregation for Federated Learning Against Poisoning Attacks"
+title: "Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning"
 authors:
   - family-names: Huang
     given-names: Shiqi
-repository-code: "To be added before public release"
-date-released: "2026-06-11"
-version: "pre-submission"
+repository-code: "https://github.com/shiqiexperience/hashchain-auditable-robust-fl"
+date-released: "2026-06-15"
+version: "pre-submission-comnet"

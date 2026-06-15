@@ -1,0 +1,11 @@
+attack_type,coefficient_variant,n,acc_mean,acc_std,best_acc_mean,asr_mean,asr_std,loss_mean,early_stop_count
+adaptive_scaling,balanced,3,85.81,0.77,86.14,2.01,1.0,0.3772,0
+adaptive_scaling,default,3,85.19,0.68,85.42,1.99,1.16,0.3931,0
+adaptive_scaling,direction_heavy,3,86.3,1.0,86.69,1.95,0.94,0.3656,0
+adaptive_scaling,history_heavy,3,85.64,0.73,85.81,2.07,1.11,0.3825,0
+adaptive_scaling,norm_heavy,3,83.04,2.94,83.21,2.02,1.07,0.4547,0
+sign_flip,balanced,3,84.64,1.61,84.85,2.36,1.43,0.4115,0
+sign_flip,default,3,84.1,1.96,84.55,2.25,1.47,0.4236,0
+sign_flip,direction_heavy,3,84.08,2.2,84.62,2.31,1.47,0.4271,0
+sign_flip,history_heavy,3,84.78,1.47,84.98,2.46,1.34,0.4112,0
+sign_flip,norm_heavy,3,84.01,1.49,84.4,2.05,1.46,0.428,0

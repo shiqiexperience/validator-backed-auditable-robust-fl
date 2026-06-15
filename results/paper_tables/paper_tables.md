@@ -75,8 +75,81 @@
 | 0.4 | proposed | 3 | 85.12 | 0.72 | 85.48 | 1.97 | 1.19 | 0.3934 | 0 |
 | 0.4 | trimmed_mean | 3 | 86.16 | 0.92 | 86.21 | 1.79 | 0.28 | 0.3745 | 0 |
 
+## FLTrust Extension
+| dataset | iid | attack_type | aggregation | n | acc_mean | acc_std | best_acc_mean | asr_mean | asr_std | loss_mean | early_stop_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| FashionMNIST | False | adaptive_scaling | fltrust | 3 | 65.33 | 1.75 | 65.33 | 4.03 | 0.53 | 1.1195 | 0 |
+| FashionMNIST | False | backdoor | fltrust | 3 | 64.39 | 4.37 | 64.41 | 4.24 | 1.63 | 1.1697 | 0 |
+| FashionMNIST | False | sign_flip | fltrust | 3 | 64.73 | 4.06 | 64.77 | 3.76 | 1.74 | 1.1465 | 0 |
+| FashionMNIST | True | adaptive_scaling | fltrust | 3 | 73.62 | 0.57 | 73.62 | 3.06 | 0.39 | 0.7884 | 0 |
+| FashionMNIST | True | backdoor | fltrust | 3 | 72.77 | 0.55 | 72.84 | 4.21 | 0.71 | 0.8096 | 0 |
+| FashionMNIST | True | sign_flip | fltrust | 3 | 73.56 | 0.46 | 73.57 | 3.05 | 0.36 | 0.7887 | 0 |
+
+## Collusive Direction Attack Extension
+| dataset | iid | attack_type | aggregation | n | acc_mean | acc_std | best_acc_mean | asr_mean | asr_std | loss_mean | early_stop_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| FashionMNIST | False | collusive_direction | fedavg | 3 | 76.45 | 7.85 | 76.45 | 2.82 | 0.16 | 0.6694 | 0 |
+| FashionMNIST | False | collusive_direction | fltrust | 3 | 64.68 | 4.05 | 64.72 | 3.76 | 1.74 | 1.1466 | 0 |
+| FashionMNIST | False | collusive_direction | norm_filter | 3 | 44.84 | 30.88 | 62.98 | 0.88 | 1.53 | 108985.1528 | 0 |
+| FashionMNIST | False | collusive_direction | proposed | 3 | 82.68 | 2.26 | 84.46 | 2.02 | 1.1 | 0.4558 | 0 |
+
+## FLAME Backdoor Extension
+| dataset | iid | attack_type | aggregation | n | acc_mean | acc_std | best_acc_mean | asr_mean | asr_std | loss_mean | early_stop_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| CIFAR10 | False | backdoor | fedavg | 3 | 71.41 | 5.68 | 72.07 | 7.97 | 5.72 | 0.8227 | 0 |
+| CIFAR10 | False | backdoor | flame | 3 | 29.98 | 20.09 | 56.44 | 69.28 | 31.62 | 2.8468 | 0 |
+| CIFAR10 | False | backdoor | fltrust | 3 | 36.49 | 7.56 | 36.6 | 16.11 | 8.92 | 1.7213 | 0 |
+| CIFAR10 | False | backdoor | norm_filter | 3 | 78.92 | 1.19 | 80.05 | 2.71 | 0.89 | 0.6411 | 0 |
+| CIFAR10 | False | backdoor | proposed | 3 | 77.38 | 0.63 | 78.74 | 2.88 | 2.46 | 0.6702 | 0 |
+| CIFAR10 | True | backdoor | fedavg | 3 | 78.55 | 1.94 | 79.49 | 6.43 | 0.86 | 0.6323 | 0 |
+| CIFAR10 | True | backdoor | flame | 3 | 70.54 | 2.16 | 70.91 | 7.85 | 2.49 | 0.8474 | 0 |
+| CIFAR10 | True | backdoor | fltrust | 3 | 23.98 | 24.21 | 26.7 | 68.15 | 55.17 | 6.2879 | 0 |
+| CIFAR10 | True | backdoor | norm_filter | 3 | 84.43 | 0.19 | 84.71 | 1.22 | 0.15 | 0.4905 | 0 |
+| CIFAR10 | True | backdoor | proposed | 3 | 83.5 | 0.89 | 84.19 | 1.22 | 0.45 | 0.5463 | 0 |
+| FashionMNIST | False | backdoor | fedavg | 3 | 84.93 | 1.64 | 84.93 | 90.27 | 8.52 | 0.4115 | 0 |
+| FashionMNIST | False | backdoor | flame | 3 | 80.47 | 2.98 | 82.2 | 14.05 | 4.65 | 0.5469 | 0 |
+| FashionMNIST | False | backdoor | fltrust | 3 | 64.37 | 4.36 | 64.4 | 4.24 | 1.63 | 1.1696 | 0 |
+| FashionMNIST | False | backdoor | norm_filter | 3 | 84.59 | 2.22 | 85.04 | 2.78 | 0.37 | 0.4069 | 0 |
+| FashionMNIST | False | backdoor | proposed | 3 | 83.63 | 0.95 | 84.21 | 3.17 | 0.91 | 0.427 | 0 |
+| FashionMNIST | True | backdoor | fedavg | 3 | 85.13 | 0.38 | 85.18 | 73.56 | 3.9 | 0.399 | 0 |
+| FashionMNIST | True | backdoor | flame | 3 | 78.44 | 5.0 | 82.55 | 7.2 | 2.48 | 0.586 | 0 |
+| FashionMNIST | True | backdoor | fltrust | 3 | 72.74 | 0.56 | 72.83 | 4.21 | 0.81 | 0.8101 | 0 |
+| FashionMNIST | True | backdoor | norm_filter | 3 | 88.36 | 0.41 | 88.39 | 1.58 | 0.29 | 0.3202 | 0 |
+| FashionMNIST | True | backdoor | proposed | 3 | 88.33 | 0.3 | 88.39 | 1.52 | 0.31 | 0.3215 | 0 |
+
+## Proposed Ablation
+| attack_type | ablation_variant | n | acc_mean | acc_std | best_acc_mean | asr_mean | asr_std | loss_mean | early_stop_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| backdoor | full | 3 | 83.68 | 1.08 | 84.15 | 3.18 | 0.9 | 0.4263 | 0 |
+| backdoor | no_direction | 3 | 83.85 | 1.33 | 83.98 | 1.92 | 1.19 | 0.4287 | 0 |
+| backdoor | no_hard_reject | 3 | 83.79 | 0.94 | 84.31 | 2.96 | 0.72 | 0.4225 | 0 |
+| backdoor | no_history | 3 | 83.25 | 0.74 | 83.54 | 2.8 | 0.63 | 0.433 | 0 |
+| collusive_direction | full | 3 | 82.8 | 1.09 | 84.49 | 1.97 | 0.87 | 0.4428 | 0 |
+| collusive_direction | no_direction | 3 | 77.47 | 1.93 | 77.75 | 3.05 | 0.44 | 0.6139 | 0 |
+| collusive_direction | no_hard_reject | 3 | 78.12 | 1.51 | 78.44 | 3.04 | 0.15 | 0.5626 | 0 |
+| collusive_direction | no_history | 3 | 81.36 | 3.09 | 83.92 | 1.63 | 1.24 | 0.4635 | 0 |
+
+## Coefficient Sensitivity
+| attack_type | coefficient_variant | n | acc_mean | acc_std | best_acc_mean | asr_mean | asr_std | loss_mean | early_stop_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| adaptive_scaling | balanced | 3 | 85.81 | 0.77 | 86.14 | 2.01 | 1.0 | 0.3772 | 0 |
+| adaptive_scaling | default | 3 | 85.19 | 0.68 | 85.42 | 1.99 | 1.16 | 0.3931 | 0 |
+| adaptive_scaling | direction_heavy | 3 | 86.3 | 1.0 | 86.69 | 1.95 | 0.94 | 0.3656 | 0 |
+| adaptive_scaling | history_heavy | 3 | 85.64 | 0.73 | 85.81 | 2.07 | 1.11 | 0.3825 | 0 |
+| adaptive_scaling | norm_heavy | 3 | 83.04 | 2.94 | 83.21 | 2.02 | 1.07 | 0.4547 | 0 |
+| sign_flip | balanced | 3 | 84.64 | 1.61 | 84.85 | 2.36 | 1.43 | 0.4115 | 0 |
+| sign_flip | default | 3 | 84.1 | 1.96 | 84.55 | 2.25 | 1.47 | 0.4236 | 0 |
+| sign_flip | direction_heavy | 3 | 84.08 | 2.2 | 84.62 | 2.31 | 1.47 | 0.4271 | 0 |
+| sign_flip | history_heavy | 3 | 84.78 | 1.47 | 84.98 | 2.46 | 1.34 | 0.4112 | 0 |
+| sign_flip | norm_heavy | 3 | 84.01 | 1.49 | 84.4 | 2.05 | 1.46 | 0.428 | 0 |
+
 ## Interpretation Notes
 - Use one latest run per experiment_name.
 - Exclude smoke, tune, and core_extra diagnostic experiments from main tables.
 - Proposed should be described as auditable and competitive, not as uniformly accuracy-best.
 - Norm Filter is the strongest clean-accuracy baseline on CIFAR-10 Non-IID.
+- FLTrust rows use a trusted root set and should be interpreted under a different trust assumption.
+- Collusive-direction rows stress-test coordinated malicious updates in Non-IID settings.
+- FLAME rows evaluate a backdoor-specific clustering, clipping, and noise-injection baseline.
+- Ablation rows isolate direction scoring, history scoring, and hard rejection in the proposed method.
+- Coefficient-sensitivity rows test whether the proposed method depends on one exact anomaly-score weighting.

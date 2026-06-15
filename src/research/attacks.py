@@ -6,7 +6,7 @@ from typing import Mapping
 
 import torch
 
-from .aggregation import StateDict, clone_state, update_norm
+from .aggregation import StateDict, apply_update, clone_state, update_norm, update_vector
 
 
 def apply_update_attack(
@@ -51,6 +51,26 @@ def apply_update_attack(
     return out
 
 
+def collusive_direction_attack(
+    global_state: Mapping[str, torch.Tensor],
+    benign_states: list[Mapping[str, torch.Tensor]],
+    strength: float = 1.0,
+    adaptive_threshold: float | None = None,
+) -> StateDict:
+    """Craft a shared malicious update against the benign mean direction."""
+
+    if not benign_states:
+        return clone_state(global_state)
+    benign_updates = [update_vector(global_state, state) for state in benign_states]
+    if not benign_updates or benign_updates[0].numel() == 0:
+        return clone_state(global_state)
+    target_update = -float(strength) * torch.stack(benign_updates).mean(dim=0)
+    target_norm = float(torch.linalg.vector_norm(target_update).item())
+    if adaptive_threshold is not None and target_norm > adaptive_threshold and target_norm > 0.0:
+        target_update = target_update * (0.98 * float(adaptive_threshold) / target_norm)
+    return apply_update(global_state, target_update)
+
+
 def flip_labels(labels: torch.Tensor, num_classes: int = 10, mode: str = "cyclic") -> torch.Tensor:
     if mode == "cyclic":
         return (labels + 1) % num_classes
@@ -66,4 +86,3 @@ def add_backdoor_trigger(data: torch.Tensor, value: float = 1.0) -> torch.Tensor
     poisoned = data.clone()
     poisoned[..., -4:, -4:] = value
     return poisoned
-

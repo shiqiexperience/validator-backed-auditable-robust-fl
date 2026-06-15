@@ -6,6 +6,10 @@ Recommended repository name:
 
 `hashchain-auditable-robust-fl`
 
+Current manuscript title:
+
+`Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning`
+
 ## Include: Core Code
 
 | Source path | Release path | Required |
@@ -14,6 +18,7 @@ Recommended repository name:
 | `src/research/aggregation.py` | `src/research/aggregation.py` | Yes |
 | `src/research/attacks.py` | `src/research/attacks.py` | Yes |
 | `src/research/audit.py` | `src/research/audit.py` | Yes |
+| `src/research/validator_audit.py` | `src/research/validator_audit.py` | Yes |
 | `src/research/metrics.py` | `src/research/metrics.py` | Yes |
 
 ## Include: Experiment Scripts
@@ -27,7 +32,9 @@ Recommended repository name:
 | `experiments/export_paper_tables.py` | `experiments/export_paper_tables.py` | Yes |
 | `experiments/export_paper_figures.py` | `experiments/export_paper_figures.py` | Yes |
 | `experiments/export_audit_case.py` | `experiments/export_audit_case.py` | Yes |
+| `experiments/export_audit_metrics.py` | `experiments/export_audit_metrics.py` | Yes |
 | `experiments/export_overhead_table.py` | `experiments/export_overhead_table.py` | Yes |
+| `experiments/export_validator_audit_metrics.py` | `experiments/export_validator_audit_metrics.py` | Yes |
 | `experiments/make_pilot_manifest.py` | `experiments/make_pilot_manifest.py` | Optional |
 
 ## Include: Final Configurations
@@ -41,6 +48,9 @@ Recommended repository name:
 | `configs/b_journal_suite_core_cuda/cifar10_noniid_seed43_main18.txt` | `configs/b_journal_suite_core_cuda/cifar10_noniid_seed43_main18.txt` | Optional |
 | `configs/b_journal_suite_core_cuda/cifar10_noniid_seed44_main18.txt` | `configs/b_journal_suite_core_cuda/cifar10_noniid_seed44_main18.txt` | Optional |
 | `configs/b_journal_suite_core_cuda/cifar10_seed42_main36.txt` | `configs/b_journal_suite_core_cuda/cifar10_seed42_main36.txt` | Optional |
+| `configs/b_journal_suite_extension_cuda/` | `configs/b_journal_suite_extension_cuda/` | Yes |
+| `configs/b_journal_suite_sensitivity_cuda/` | `configs/b_journal_suite_sensitivity_cuda/` | Yes |
+| `configs/b_journal_suite_ablation_cuda/` | `configs/b_journal_suite_ablation_cuda/` | Yes |
 
 ## Include: Result Summaries and Paper Artifacts
 
@@ -51,14 +61,18 @@ Recommended repository name:
 | `experiments_b_journal/paper_tables/` | `results/paper_tables/` | Yes |
 | `experiments_b_journal/paper_figures/` | `results/paper_figures/` | Yes |
 | `experiments_b_journal/audit_case/fashion_noniid_signflip_proposed_s42/` | `results/audit_case/fashion_noniid_signflip_proposed_s42/` | Yes |
+| `experiments_b_journal/paper_tables/validator_audit_*.csv` | `results/paper_tables/` | Yes |
+| `experiments_b_journal/paper_tables/validator_audit_network_events*.csv` | `results/paper_tables/` | Yes |
 
 ## Include: Manuscript Support
 
 | Source path | Release path | Required |
 |---|---|---|
-| `docs/manuscript_jisa.tex` | `paper/manuscript_jisa.tex` | Optional |
+| `docs/manuscript_comnet.tex` | `paper/manuscript_comnet.tex` | Optional |
+| `docs/manuscript_comnet.pdf` | `paper/manuscript_comnet.pdf` | Optional |
+| `docs/supplementary_tables_comnet.tex` | `paper/supplementary_tables_comnet.tex` | Optional |
+| `docs/supplementary_tables_comnet.pdf` | `paper/supplementary_tables_comnet.pdf` | Optional |
 | `docs/references.bib` | `paper/references.bib` | Optional |
-| `docs/figure_caption_list_jisa.md` | `paper/figure_caption_list_jisa.md` | Optional |
 | `docs/reproducibility_release_plan.md` | `docs/reproducibility_release_plan.md` | Yes |
 
 ## Create for Release
@@ -80,6 +94,8 @@ Do not include these in the public reproducibility repository:
 - `venv_cuda/` or any local virtual environment.
 - `__pycache__/`, `.pytest_cache/`, LaTeX auxiliary files, local editor files.
 - Legacy result folders under `experiments/MNIST_iid_clients10_*`.
+- Earlier submission files and venue-specific files that do not correspond to the current Computer Networks manuscript.
+- Cover letters, highlights, submission checklists, competing-interest forms, and other editorial-system documents.
 - Early scripts not used in the paper, such as older testing and text-generation scripts, unless explicitly documented.
 - Smoke-test configs unless needed for a quick-start demo.
 - Raw downloaded datasets if licenses require users to download them from official sources.

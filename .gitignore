@@ -19,6 +19,9 @@ experiments_b_journal/
 *.blg
 *.out
 *.spl
+*.toc
+*.lof
+*.lot
 *.synctex.gz
 
 .idea/

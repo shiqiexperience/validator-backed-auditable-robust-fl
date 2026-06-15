@@ -1,0 +1,6 @@
+scenario,runs,tampered_blocks,valid_block_finalization_rate_mean,valid_block_finalization_rate_std,aggregator_authorization_verification_rate_mean,aggregator_authorization_verification_rate_std,invalid_block_rejection_rate_mean,invalid_block_rejection_rate_std,invalid_block_acceptance_rate_mean,invalid_block_acceptance_rate_std,mean_valid_verification_time_ms,std_valid_verification_time_ms,mean_invalid_verification_time_ms,std_invalid_verification_time_ms,verification_target
+evidence_hash_tamper,39,3600,1.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,2.063516303345921,0.01888186972914169,0.4515170301135349,0.005296606216091868,evidence_hash_integrity
+evidence_score_tamper,39,3600,1.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,2.063516303345921,0.01888186972914169,2.003481666465204,0.016898411599114344,evidence_bound_decision_recomputation
+missing_evidence,39,3600,1.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,2.063516303345921,0.01888186972914169,0.2857898186642774,0.005504191169723046,evidence_availability
+self_consistent_score_tamper,39,3600,1.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,2.063516303345921,0.01888186972914169,2.0223841877858417,0.01712688041372464,decision_recomputation_after_refreshed_hashes
+self_consistent_weight_tamper,39,3600,1.0,0.0,1.0,0.0,1.0,0.0,0.0,0.0,2.063516303345921,0.01888186972914169,2.005176196963343,0.016942684320230914,decision_recomputation_after_refreshed_hashes

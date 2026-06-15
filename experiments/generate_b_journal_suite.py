@@ -42,6 +42,9 @@ BASE_CONFIG = {
     "proposed_anomaly_reject_threshold": 4.0,
     "proposed_direction_reject_threshold": -0.4,
     "proposed_fallback_accept_fraction": 0.5,
+    "proposed_norm_coefficient": 0.45,
+    "proposed_direction_coefficient": 0.35,
+    "proposed_history_coefficient": 0.20,
 }
 
 
@@ -186,9 +189,144 @@ def generate_main(out_dir: Path, profile: str) -> List[Path]:
     return paths
 
 
+def generate_extension(out_dir: Path, profile: str) -> List[Path]:
+    """Generate focused post-rejection extensions: FLTrust and collusive attacks."""
+
+    paths = []
+    seeds = [42, 43, 44]
+    datasets = ["FashionMNIST", "CIFAR10"]
+    distributions = [True, False]
+
+    # FLTrust baseline under the main poisoning attacks. This changes the trust
+    # model by adding a small trusted root set, so it is kept in a separate suite.
+    for dataset in datasets:
+        for iid in distributions:
+            for attack in ["sign_flip", "adaptive_scaling", "backdoor"]:
+                for seed in seeds:
+                    cfg = make_config(dataset, "fltrust", attack, iid, rounds=80, seed=seed, profile=profile)
+                    cfg["fltrust_root_samples"] = 100
+                    cfg["experiment_name"] = (
+                        f"ext_fltrust_{dataset.lower()}_{'iid' if iid else 'noniid'}_{attack}_s{seed}"
+                    )
+                    if dataset == "CIFAR10":
+                        cfg["num_rounds"] = 120
+                        cfg["learning_rate"] = 0.005
+                    path = out_dir / f"{cfg['experiment_name']}.json"
+                    write_config(path, cfg)
+                    paths.append(path)
+
+    # DFL-specific collusive poisoning stress test. FLTrust is included to compare
+    # root-trust bootstrapping against the proposed auditable reputation method.
+    for dataset in datasets:
+        for aggregation in ["fedavg", "norm_filter", "proposed", "fltrust"]:
+            for seed in seeds:
+                cfg = make_config(dataset, aggregation, "collusive_direction", False, rounds=80, seed=seed, profile=profile)
+                cfg["attack_strength"] = 2.0
+                cfg["fltrust_root_samples"] = 100
+                cfg["experiment_name"] = f"ext_collusive_{dataset.lower()}_noniid_{aggregation}_s{seed}"
+                if dataset == "CIFAR10":
+                    cfg["num_rounds"] = 120
+                    cfg["learning_rate"] = 0.005
+                path = out_dir / f"{cfg['experiment_name']}.json"
+                write_config(path, cfg)
+                paths.append(path)
+
+    # Backdoor-specific FLAME comparison. FLAME is a specialized backdoor defense,
+    # so it is evaluated only under the backdoor attack.
+    for dataset in datasets:
+        for iid in distributions:
+            for aggregation in ["fedavg", "norm_filter", "fltrust", "flame", "proposed"]:
+                for seed in seeds:
+                    cfg = make_config(dataset, aggregation, "backdoor", iid, rounds=80, seed=seed, profile=profile)
+                    cfg["fltrust_root_samples"] = 100
+                    cfg["flame_cluster_eps"] = 0.35
+                    cfg["flame_min_samples"] = 2
+                    cfg["flame_noise_multiplier"] = 0.001
+                    cfg["experiment_name"] = (
+                        f"ext_flame_{dataset.lower()}_{'iid' if iid else 'noniid'}_{aggregation}_s{seed}"
+                    )
+                    if dataset == "CIFAR10":
+                        cfg["num_rounds"] = 120
+                        cfg["learning_rate"] = 0.005
+                    path = out_dir / f"{cfg['experiment_name']}.json"
+                    write_config(path, cfg)
+                    paths.append(path)
+
+    return paths
+
+
+def generate_ablation(out_dir: Path, profile: str) -> List[Path]:
+    """Generate focused ablations for the proposed aggregation rule."""
+
+    paths = []
+    seeds = [42, 43, 44]
+    variants = {
+        "full": {},
+        "no_direction": {"proposed_use_direction_score": False},
+        "no_history": {"proposed_use_history_score": False},
+        "no_hard_reject": {"proposed_use_hard_rejection": False},
+    }
+    for attack in ["sign_flip", "adaptive_scaling", "backdoor"]:
+        for variant, overrides in variants.items():
+            for seed in seeds:
+                cfg = make_config("FashionMNIST", "proposed", attack, False, rounds=80, seed=seed, profile=profile)
+                cfg.update(overrides)
+                cfg["ablation_variant"] = variant
+                cfg["experiment_name"] = f"ablation_fashionmnist_noniid_{attack}_{variant}_s{seed}"
+                path = out_dir / f"{cfg['experiment_name']}.json"
+                write_config(path, cfg)
+                paths.append(path)
+
+    # Add the DFL collusive attack as a targeted stress-test ablation.
+    for variant, overrides in variants.items():
+        for seed in seeds:
+            cfg = make_config("FashionMNIST", "proposed", "collusive_direction", False, rounds=80, seed=seed, profile=profile)
+            cfg.update(overrides)
+            cfg["attack_strength"] = 2.0
+            cfg["ablation_variant"] = variant
+            cfg["experiment_name"] = f"ablation_fashionmnist_noniid_collusive_direction_{variant}_s{seed}"
+            path = out_dir / f"{cfg['experiment_name']}.json"
+            write_config(path, cfg)
+            paths.append(path)
+
+    return paths
+
+
+def generate_sensitivity(out_dir: Path, profile: str) -> List[Path]:
+    """Generate lightweight coefficient-sensitivity runs for the proposed rule."""
+
+    paths = []
+    seeds = [42, 43, 44]
+    variants = {
+        "default": (0.45, 0.35, 0.20),
+        "norm_heavy": (0.60, 0.25, 0.15),
+        "direction_heavy": (0.30, 0.50, 0.20),
+        "history_heavy": (0.35, 0.25, 0.40),
+        "balanced": (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0),
+    }
+    for attack in ["sign_flip", "adaptive_scaling"]:
+        for variant, coefficients in variants.items():
+            norm_coeff, direction_coeff, history_coeff = coefficients
+            for seed in seeds:
+                cfg = make_config("FashionMNIST", "proposed", attack, False, rounds=80, seed=seed, profile=profile)
+                cfg["coefficient_variant"] = variant
+                cfg["proposed_norm_coefficient"] = norm_coeff
+                cfg["proposed_direction_coefficient"] = direction_coeff
+                cfg["proposed_history_coefficient"] = history_coeff
+                cfg["experiment_name"] = f"sensitivity_fashionmnist_noniid_{attack}_{variant}_s{seed}"
+                path = out_dir / f"{cfg['experiment_name']}.json"
+                write_config(path, cfg)
+                paths.append(path)
+    return paths
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--suite", choices=["smoke", "core", "main"], default="smoke")
+    parser.add_argument(
+        "--suite",
+        choices=["smoke", "core", "main", "extension", "ablation", "sensitivity"],
+        default="smoke",
+    )
     parser.add_argument("--profile", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--out-dir", default="configs/b_journal_suite")
     args = parser.parse_args()
@@ -198,6 +336,12 @@ def main() -> None:
         paths = generate_smoke(out_dir, args.profile)
     elif args.suite == "core":
         paths = generate_core(out_dir, args.profile)
+    elif args.suite == "extension":
+        paths = generate_extension(out_dir, args.profile)
+    elif args.suite == "ablation":
+        paths = generate_ablation(out_dir, args.profile)
+    elif args.suite == "sensitivity":
+        paths = generate_sensitivity(out_dir, args.profile)
     else:
         paths = generate_main(out_dir, args.profile)
 

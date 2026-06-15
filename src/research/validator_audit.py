@@ -13,6 +13,7 @@ import copy
 import hashlib
 import hmac
 import json
+import math
 import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
@@ -63,6 +64,7 @@ def _aggregator_message(proposed_block: Mapping[str, Any]) -> str:
             "aggregator_id": int(proposed_block["aggregator_id"]),
             "previous_hash": str(proposed_block["previous_hash"]),
             "payload_hash": str(proposed_block["payload_hash"]),
+            "evidence_hash": str(proposed_block.get("evidence_hash", "")),
         }
     )
 
@@ -146,6 +148,81 @@ def verify_client_commitment(commitment: Mapping[str, Any], client_secret: str) 
     return _verify(client_secret, message, str(commitment["signature"]))
 
 
+def _metadata_hash_from_client_record(round_id: int, client_record: Mapping[str, Any]) -> str:
+    metadata = {
+        "round": int(client_record.get("round", round_id)),
+        "client_id": int(client_record["client_id"]),
+        "num_samples": int(client_record.get("num_samples", 0)),
+        "update_norm": float(client_record.get("update_norm", 0.0)),
+        "selected": int(client_record.get("selected", 1)),
+    }
+    return hash_payload(metadata)
+
+
+def _update_hash_from_client_record(round_id: int, client_record: Mapping[str, Any], metadata_hash: str) -> str:
+    return sha256_hex(
+        f"{round_id}:{int(client_record['client_id'])}:"
+        f"{float(client_record.get('update_norm', 0.0)):.12f}:{metadata_hash}"
+    )
+
+
+def _build_decision_evidence(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
+    clients = {int(client["client_id"]): client for client in payload.get("clients", [])}
+    evidence = []
+    for decision in payload.get("decisions", []):
+        client_id = int(float(decision["client_id"]))
+        client = clients.get(client_id, {})
+        evidence.append(
+            {
+                "client_id": client_id,
+                "round": int(client.get("round", payload.get("metrics", {}).get("round", 0))),
+                "num_samples": int(client.get("num_samples", 0)),
+                "update_norm": float(client.get("update_norm", decision.get("norm", 0.0))),
+                "selected": int(client.get("selected", 1)),
+                "norm": float(decision.get("norm", client.get("update_norm", 0.0))),
+                "direction": float(decision.get("direction", 0.0)),
+                "norm_score": float(decision.get("norm_score", 0.0)),
+                "history_score": float(decision.get("history_score", 0.0)),
+                "reputation_before": float(decision.get("reputation_before", 1.0)),
+                "use_direction_score": float(decision.get("use_direction_score", 1.0)),
+                "use_history_score": float(decision.get("use_history_score", 1.0)),
+                "use_hard_rejection": float(decision.get("use_hard_rejection", 1.0)),
+            }
+        )
+    return evidence
+
+
+def build_round_evidence(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Build the off-chain evidence package used by validators.
+
+    The benchmark stores a compact deterministic representation rather than full
+    model-update tensors. It contains the scalar evidence required to recompute
+    the proposed decision fields.
+    """
+
+    evidence_rows = _build_decision_evidence(payload)
+    first = evidence_rows[0] if evidence_rows else {}
+    return {
+        "schema": "validator-round-evidence-v1",
+        "decision_evidence": evidence_rows,
+        "aggregation_params": {
+            "norm_coefficient": float(first.get("norm_coefficient", 0.45)),
+            "direction_coefficient": float(first.get("direction_coefficient", 0.35)),
+            "history_coefficient": float(first.get("history_coefficient", 0.20)),
+            "reputation_decay": 0.85,
+            "reputation_update_rate": 0.15,
+            "reputation_min": 0.05,
+            "reputation_max": 1.5,
+            "anomaly_reject_threshold": 4.0,
+            "threshold_scale": 2.5,
+            "direction_reject_threshold": -0.4,
+            "min_weight": 0.0,
+            "weight_temperature": 1.2,
+            "fallback_accept_fraction": 0.5,
+        },
+    }
+
+
 def build_proposed_block(
     source_block: Mapping[str, Any],
     previous_hash: str,
@@ -156,6 +233,7 @@ def build_proposed_block(
     """Build an aggregator-proposed block from the existing audit payload."""
 
     payload = copy.deepcopy(source_block["payload"])
+    evidence = build_round_evidence(payload)
     commitments = [
         make_client_commitment(int(source_block["round"]), client, client_secrets[int(client["client_id"])])
         for client in payload.get("clients", [])
@@ -165,9 +243,11 @@ def build_proposed_block(
         "timestamp": float(source_block.get("timestamp", time.time())),
         "previous_hash": previous_hash,
         "payload": payload,
+        "evidence": evidence,
         "client_commitments": [commitment.to_record() for commitment in commitments],
     }
     proposed["payload_hash"] = hash_payload(payload)
+    proposed["evidence_hash"] = hash_payload(evidence)
     if aggregator_id is not None:
         if aggregator_secret is None:
             raise ValueError("aggregator_secret is required when aggregator_id is set")
@@ -191,6 +271,100 @@ def _client_map(proposed_block: Mapping[str, Any]) -> dict[int, Mapping[str, Any
     }
 
 
+def _evidence_map(proposed_block: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]:
+    return {
+        int(evidence["client_id"]): evidence
+        for evidence in proposed_block.get("evidence", {}).get("decision_evidence", [])
+    }
+
+
+def _recompute_decisions_from_evidence(
+    proposed_block: Mapping[str, Any],
+) -> tuple[dict[int, dict[str, float]], str]:
+    evidence_package = proposed_block.get("evidence")
+    if not isinstance(evidence_package, Mapping):
+        return {}, "missing_evidence_package"
+    params = evidence_package.get("aggregation_params", {})
+    if not isinstance(params, Mapping):
+        return {}, "missing_aggregation_params"
+
+    norm_coeff = float(params.get("norm_coefficient", 0.45))
+    direction_coeff_default = float(params.get("direction_coefficient", 0.35))
+    history_coeff_default = float(params.get("history_coefficient", 0.20))
+    rep_decay = float(params.get("reputation_decay", 0.85))
+    rep_update = float(params.get("reputation_update_rate", 0.15))
+    rep_min = float(params.get("reputation_min", 0.05))
+    rep_max = float(params.get("reputation_max", 1.5))
+    anomaly_threshold = float(params.get("anomaly_reject_threshold", 4.0))
+    threshold_scale = float(params.get("threshold_scale", 2.5))
+    direction_reject_threshold = float(params.get("direction_reject_threshold", -0.4))
+    min_weight = float(params.get("min_weight", 0.0))
+    temperature = float(params.get("weight_temperature", 1.2))
+    fallback_fraction = float(params.get("fallback_accept_fraction", 0.5))
+
+    raw: dict[int, dict[str, float]] = {}
+    raw_weights: dict[int, float] = {}
+    evidence_rows = evidence_package.get("decision_evidence", [])
+    if not isinstance(evidence_rows, Sequence):
+        return {}, "invalid_decision_evidence"
+
+    for row in evidence_rows:
+        client_id = int(row["client_id"])
+        use_direction = float(row.get("use_direction_score", 1.0)) > 0.5
+        use_history = float(row.get("use_history_score", 1.0)) > 0.5
+        use_hard = float(row.get("use_hard_rejection", 1.0)) > 0.5
+        norm_score = float(row.get("norm_score", 0.0))
+        direction = float(row.get("direction", 0.0))
+        direction_score = max(0.0, 1.0 - direction) if use_direction else 0.0
+        history_score = float(row.get("history_score", 0.0)) if use_history else 0.0
+        direction_coeff = direction_coeff_default if use_direction else 0.0
+        history_coeff = history_coeff_default if use_history else 0.0
+        total_coeff = max(norm_coeff + direction_coeff + history_coeff, 1e-12)
+        anomaly = (
+            norm_coeff * norm_score
+            + direction_coeff * direction_score
+            + history_coeff * history_score
+        ) / total_coeff
+        rep_before = float(row.get("reputation_before", 1.0))
+        rep_after = max(rep_min, min(rep_max, rep_decay * rep_before + rep_update * math.exp(-anomaly)))
+        hard_reject = False
+        if use_hard:
+            hard_reject = (
+                anomaly > anomaly_threshold
+                or (norm_score > threshold_scale and direction < 0.0)
+                or (use_direction and direction < direction_reject_threshold)
+            )
+        weight = 0.0 if hard_reject else max(min_weight, rep_after * math.exp(-temperature * anomaly))
+        raw_weights[client_id] = weight
+        raw[client_id] = {
+            "norm_score": norm_score,
+            "history_score": history_score,
+            "anomaly_score": anomaly,
+            "reputation_before": rep_before,
+            "reputation_after": rep_after,
+            "aggregation_weight": weight,
+            "rejected": 1.0 if hard_reject else 0.0,
+        }
+
+    if raw and sum(raw_weights.values()) <= 0.0:
+        accept_count = max(1, int(math.ceil(len(raw) * fallback_fraction)))
+        accepted = {
+            client_id
+            for client_id, _ in sorted(raw.items(), key=lambda item: item[1]["anomaly_score"])[:accept_count]
+        }
+        for client_id, values in raw.items():
+            if client_id in accepted:
+                fallback_weight = max(1e-6, values["reputation_after"] * math.exp(-temperature * values["anomaly_score"]))
+                values["aggregation_weight"] = fallback_weight
+                values["rejected"] = 0.0
+                values["fallback_selected"] = 1.0
+            else:
+                values["aggregation_weight"] = 0.0
+                values["fallback_selected"] = 0.0
+
+    return raw, "accepted"
+
+
 def verify_proposed_block(
     proposed_block: Mapping[str, Any],
     previous_hash: str,
@@ -207,6 +381,12 @@ def verify_proposed_block(
     payload = proposed_block.get("payload", {})
     if hash_payload(payload) != proposed_block.get("payload_hash"):
         return False, "payload_hash_mismatch"
+
+    evidence = proposed_block.get("evidence")
+    if not isinstance(evidence, Mapping):
+        return False, "missing_evidence_package"
+    if hash_payload(evidence) != proposed_block.get("evidence_hash"):
+        return False, "evidence_hash_mismatch"
 
     proposal_copy = copy.deepcopy(dict(proposed_block))
     found_proposal_hash = proposal_copy.pop("proposal_hash", "")
@@ -231,13 +411,14 @@ def verify_proposed_block(
 
     clients = _client_map(proposed_block)
     decisions = _decision_map(proposed_block)
+    evidence_rows = _evidence_map(proposed_block)
     commitments = {
         int(commitment["client_id"]): commitment
         for commitment in proposed_block.get("client_commitments", [])
     }
 
-    if set(clients) != set(decisions) or set(clients) != set(commitments):
-        return False, "client_decision_commitment_set_mismatch"
+    if set(clients) != set(decisions) or set(clients) != set(commitments) or set(clients) != set(evidence_rows):
+        return False, "client_decision_commitment_evidence_set_mismatch"
 
     for client_id, commitment in commitments.items():
         secret = client_secrets.get(client_id)
@@ -249,6 +430,26 @@ def verify_proposed_block(
             return False, "client_round_mismatch"
         if int(commitment["num_samples"]) != int(clients[client_id].get("num_samples", 0)):
             return False, "client_sample_count_mismatch"
+        expected_metadata_hash = _metadata_hash_from_client_record(int(proposed_block["round"]), clients[client_id])
+        expected_update_hash = _update_hash_from_client_record(
+            int(proposed_block["round"]),
+            clients[client_id],
+            expected_metadata_hash,
+        )
+        if str(commitment["metadata_hash"]) != expected_metadata_hash:
+            return False, "client_metadata_hash_mismatch"
+        if str(commitment["update_hash"]) != expected_update_hash:
+            return False, "client_update_hash_mismatch"
+
+        evidence_row = evidence_rows[client_id]
+        if int(evidence_row.get("num_samples", -1)) != int(clients[client_id].get("num_samples", 0)):
+            return False, "evidence_sample_count_mismatch"
+        if abs(float(evidence_row.get("update_norm", 0.0)) - float(clients[client_id].get("update_norm", 0.0))) > tolerance:
+            return False, "evidence_update_norm_mismatch"
+
+    recomputed, reason = _recompute_decisions_from_evidence(proposed_block)
+    if reason != "accepted":
+        return False, reason
 
     for client_id, decision in decisions.items():
         client_weight = float(clients[client_id].get("aggregation_weight", 0.0))
@@ -269,6 +470,20 @@ def verify_proposed_block(
         ]:
             if field not in decision:
                 return False, f"missing_decision_field:{field}"
+        expected = recomputed.get(client_id)
+        if expected is None:
+            return False, "missing_recomputed_decision"
+        for field in [
+            "norm_score",
+            "history_score",
+            "anomaly_score",
+            "reputation_before",
+            "reputation_after",
+            "aggregation_weight",
+            "rejected",
+        ]:
+            if abs(float(decision.get(field, 0.0)) - float(expected.get(field, 0.0))) > tolerance:
+                return False, f"decision_recompute_mismatch:{field}"
 
     return True, "accepted"
 
@@ -424,8 +639,31 @@ def make_client_secrets(client_ids: Sequence[int]) -> dict[int, str]:
     return {int(client_id): f"client-secret-{int(client_id)}" for client_id in client_ids}
 
 
-def tamper_block(proposed_block: Mapping[str, Any], scenario: str) -> dict[str, Any]:
-    """Return a tampered proposed block without recomputing proposal hashes."""
+def refresh_proposal_integrity(block: dict[str, Any], aggregator_secret: str | None = None) -> dict[str, Any]:
+    """Recompute hashes and optional aggregator signature after proposal edits."""
+
+    block["payload_hash"] = hash_payload(block.get("payload", {}))
+    if "evidence" in block:
+        block["evidence_hash"] = hash_payload(block.get("evidence", {}))
+    if aggregator_secret is not None and "aggregator_id" in block:
+        block["aggregator_signature"] = _sign(aggregator_secret, _aggregator_message(block))
+    block_without_hash = copy.deepcopy(block)
+    block_without_hash.pop("proposal_hash", None)
+    block["proposal_hash"] = hash_payload(block_without_hash)
+    return block
+
+
+def tamper_block(
+    proposed_block: Mapping[str, Any],
+    scenario: str,
+    aggregator_secret: str | None = None,
+) -> dict[str, Any]:
+    """Return a tampered proposed block.
+
+    Most scenarios leave hashes stale, modeling simple tampering. The
+    self-consistent scenarios recompute hashes and the aggregator signature so
+    validators must rely on evidence recomputation rather than hash mismatch.
+    """
 
     block = copy.deepcopy(dict(proposed_block))
     payload = block.setdefault("payload", {})
@@ -449,12 +687,29 @@ def tamper_block(proposed_block: Mapping[str, Any], scenario: str) -> dict[str, 
         block["client_commitments"][0]["signature"] = sha256_hex("bad-signature")
     elif scenario == "payload_hash_tamper":
         block["payload_hash"] = sha256_hex("bad-payload-hash")
+    elif scenario == "evidence_hash_tamper":
+        block["evidence_hash"] = sha256_hex("bad-evidence-hash")
+    elif scenario == "missing_evidence":
+        block.pop("evidence", None)
     elif scenario == "unauthorized_aggregator":
         block["aggregator_id"] = int(block.get("aggregator_id", 0)) + 1
     elif scenario == "aggregator_signature_tamper":
         block["aggregator_signature"] = sha256_hex("bad-aggregator-signature")
     elif scenario == "aggregator_equivocation":
         payload["model_hash"] = sha256_hex("equivocated-model")
+    elif scenario == "self_consistent_score_tamper":
+        payload["decisions"][0]["anomaly_score"] = float(payload["decisions"][0]["anomaly_score"]) + 1.0
+        refresh_proposal_integrity(block, aggregator_secret)
+    elif scenario == "self_consistent_weight_tamper":
+        new_weight = float(payload["decisions"][0]["aggregation_weight"]) + 0.1
+        payload["decisions"][0]["aggregation_weight"] = new_weight
+        payload["clients"][0]["aggregation_weight"] = new_weight
+        refresh_proposal_integrity(block, aggregator_secret)
+    elif scenario == "evidence_score_tamper":
+        block["evidence"]["decision_evidence"][0]["norm_score"] = (
+            float(block["evidence"]["decision_evidence"][0]["norm_score"]) + 1.0
+        )
+        refresh_proposal_integrity(block, aggregator_secret)
     else:
         raise ValueError(f"unknown tampering scenario: {scenario}")
     return block

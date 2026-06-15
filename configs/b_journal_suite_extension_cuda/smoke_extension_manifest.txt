@@ -1,0 +1,2 @@
+configs\b_journal_suite_extension_cuda\smoke_fltrust_fashion_iid_signflip.json
+configs\b_journal_suite_extension_cuda\smoke_collusive_fashion_noniid_proposed.json

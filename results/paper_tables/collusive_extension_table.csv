@@ -1,0 +1,5 @@
+dataset,iid,attack_type,aggregation,n,acc_mean,acc_std,best_acc_mean,asr_mean,asr_std,loss_mean,early_stop_count
+FashionMNIST,False,collusive_direction,fedavg,3,76.45,7.85,76.45,2.82,0.16,0.6694,0
+FashionMNIST,False,collusive_direction,fltrust,3,64.68,4.05,64.72,3.76,1.74,1.1466,0
+FashionMNIST,False,collusive_direction,norm_filter,3,44.84,30.88,62.98,0.88,1.53,108985.1528,0
+FashionMNIST,False,collusive_direction,proposed,3,82.68,2.26,84.46,2.02,1.1,0.4558,0

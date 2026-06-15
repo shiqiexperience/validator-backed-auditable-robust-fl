@@ -35,7 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.models.model_factory import create_model
 from src.research.aggregation import ReputationState, aggregate, clone_state, update_norm
-from src.research.attacks import add_backdoor_trigger, apply_update_attack, flip_labels
+from src.research.attacks import add_backdoor_trigger, apply_update_attack, collusive_direction_attack, flip_labels
 from src.research.audit import AuditChainLogger, verify_chain
 from src.research.metrics import append_csv, detection_summary, ensure_dir, evaluate, evaluate_backdoor_asr, write_json
 from src.utils.data_loader import FederatedDataLoader
@@ -193,6 +193,32 @@ def train_one_client(
     }
 
 
+def train_root_update(
+    global_state: Dict[str, torch.Tensor],
+    dataset_name: str,
+    root_loader,
+    device: str,
+    epochs: int,
+    lr: float,
+    use_amp: bool,
+) -> Dict[str, torch.Tensor]:
+    root_model = create_model(dataset_name).to(device)
+    root_model.load_state_dict(global_state)
+    train_one_client(
+        model=root_model,
+        loader=root_loader,
+        device=device,
+        epochs=epochs,
+        lr=lr,
+        is_malicious=False,
+        attack_type="none",
+        label_flip_mode="cyclic",
+        backdoor_target_label=0,
+        use_amp=use_amp,
+    )
+    return clone_state(root_model.state_dict())
+
+
 def choose_clients(num_clients: int, fraction: float) -> List[int]:
     selected_count = max(1, int(round(num_clients * fraction)))
     return sorted(np.random.choice(num_clients, selected_count, replace=False).tolist())
@@ -260,6 +286,18 @@ def run(config: Dict, config_path: Path) -> Path:
         )
         for client_id in range(int(config["num_clients"]))
     ]
+    root_loader = None
+    if str(config.get("aggregation", "fedavg")).lower() == "fltrust":
+        root_samples = min(int(config.get("fltrust_root_samples", 100)), len(data.train_dataset))
+        rng = np.random.default_rng(seed + 1009)
+        root_indices = sorted(rng.choice(len(data.train_dataset), size=root_samples, replace=False).tolist())
+        root_loader = make_loader(
+            Subset(data.train_dataset, root_indices),
+            batch_size=batch_size,
+            shuffle=True,
+            device=device,
+            config=config,
+        )
 
     global_model = create_model(config["dataset"]).to(device)
     rep_state = ReputationState()
@@ -310,17 +348,41 @@ def run(config: Dict, config_path: Path) -> Path:
             client_metrics.append({"client_id": client_id, "is_malicious": is_bad, **metrics})
 
         threshold = estimate_adaptive_threshold(global_state, client_states, float(config.get("threshold_scale", 2.5)))
+        benign_states = [state for state, metrics in zip(client_states, client_metrics) if not bool(metrics["is_malicious"])]
         attacked_states = []
         for state, metrics in zip(client_states, client_metrics):
             is_bad = bool(metrics["is_malicious"])
-            attacked_states.append(
-                apply_update_attack(
-                    attack=attack_type if is_bad else "none",
-                    global_state=global_state,
-                    client_state=state,
-                    strength=float(config.get("attack_strength", 1.0)),
-                    adaptive_threshold=threshold,
+            if is_bad and attack_type.lower() in {"collusive_direction", "dfl_collusion", "collusive_poisoning"}:
+                attacked_states.append(
+                    collusive_direction_attack(
+                        global_state=global_state,
+                        benign_states=benign_states,
+                        strength=float(config.get("attack_strength", 1.0)),
+                        adaptive_threshold=threshold,
+                    )
                 )
+            else:
+                attacked_states.append(
+                    apply_update_attack(
+                        attack=attack_type if is_bad else "none",
+                        global_state=global_state,
+                        client_state=state,
+                        strength=float(config.get("attack_strength", 1.0)),
+                        adaptive_threshold=threshold,
+                    )
+                )
+        fltrust_root_state = None
+        if aggregation_method.lower() == "fltrust":
+            if root_loader is None:
+                raise ValueError("root_loader is required for FLTrust")
+            fltrust_root_state = train_root_update(
+                global_state=global_state,
+                dataset_name=str(config["dataset"]),
+                root_loader=root_loader,
+                device=device,
+                epochs=int(config.get("fltrust_root_epochs", config["local_epochs"])),
+                lr=float(config.get("fltrust_root_learning_rate", config["learning_rate"])),
+                use_amp=use_amp,
             )
 
         defense_start = time.perf_counter()
@@ -339,6 +401,16 @@ def run(config: Dict, config_path: Path) -> Path:
             proposed_anomaly_reject_threshold=float(config.get("proposed_anomaly_reject_threshold", 4.0)),
             proposed_direction_reject_threshold=float(config.get("proposed_direction_reject_threshold", -0.4)),
             proposed_fallback_accept_fraction=float(config.get("proposed_fallback_accept_fraction", 0.5)),
+            proposed_use_direction_score=bool(config.get("proposed_use_direction_score", True)),
+            proposed_use_history_score=bool(config.get("proposed_use_history_score", True)),
+            proposed_use_hard_rejection=bool(config.get("proposed_use_hard_rejection", True)),
+            proposed_norm_coefficient=float(config.get("proposed_norm_coefficient", 0.45)),
+            proposed_direction_coefficient=float(config.get("proposed_direction_coefficient", 0.35)),
+            proposed_history_coefficient=float(config.get("proposed_history_coefficient", 0.20)),
+            fltrust_root_state=fltrust_root_state,
+            flame_cluster_eps=float(config.get("flame_cluster_eps", 0.35)),
+            flame_min_samples=int(config.get("flame_min_samples", 2)),
+            flame_noise_multiplier=float(config.get("flame_noise_multiplier", 0.001)),
         )
         defense_time = time.perf_counter() - defense_start
 
