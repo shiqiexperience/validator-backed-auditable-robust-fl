@@ -62,10 +62,10 @@ The main contributions are:
   \item We formulate aggregation finality as an application-level validity problem: anomaly scores, reputation updates, aggregation weights, commitments, model hashes, and evidence hashes must be independently recomputable before an audit block can be finalized.
   \item We design a validator-backed audit mechanism that records aggregation evidence and prevents a single aggregator from unilaterally finalizing the audit chain when the threshold assumption holds.
   \item We instantiate this validity predicate with a reputation-aware robust aggregation rule that combines norm deviation, directional consistency, history stability, and dynamic weighting under heterogeneous client data.
-  \item We provide a reproducible benchmark that combines robustness, ablation, sensitivity, audit reconstruction, committee-fault, accountability, liveness, protocol-message cost, scalability, runtime overhead, bandwidth/RTT-sensitive latency estimates, and event-driven finality simulation.
+  \item We provide a reproducible evaluation that links model robustness, component ablation, decision auditability, validator-fault boundaries, accountability evidence, liveness, protocol cost, scalability, and event-driven finality behavior to the same security argument.
 \end{enumerate}
 
-The evaluation is organized around the same argument chain. Main robustness experiments test whether the aggregation rule remains useful under poisoning. Extension and collusive-direction experiments test whether the method remains competitive against stronger trust-root, backdoor-specific, and coordinated-adversary settings. Sensitivity and ablation studies test whether the scoring weights and components are necessary. Auditability experiments test whether aggregation decisions can be reconstructed after training. Validator experiments test whether a dishonest aggregator can finalize manipulated evidence and where the committee fault and liveness boundaries lie. Protocol-cost and network-sensitivity experiments then quantify the extra messages, local verification work, proposal sizes, committee communication, estimated finality latency, and event-driven threshold-finality behavior introduced by validator-backed audit finality.
+The evaluation is organized around the same argument chain. Main robustness experiments test whether the aggregation rule remains useful under poisoning. Extension and collusive-direction experiments test whether the method remains competitive against trust-root, backdoor-specific, and coordinated-adversary settings while exposing its high-adversary-fraction boundary. Sensitivity and ablation studies test whether the scoring weights and components are necessary. Auditability experiments test whether aggregation decisions can be reconstructed after training. Validator experiments test whether a dishonest aggregator can finalize manipulated evidence and where the committee fault and liveness boundaries lie. Protocol-cost and network-sensitivity experiments then quantify the extra messages, local verification work, proposal sizes, committee communication, estimated finality latency, and event-driven threshold-finality behavior introduced by validator-backed audit finality.
 
 \section{Related Work}
 
@@ -324,7 +324,7 @@ The validator-backed audit experiments are implemented as protocol simulations o
 
 \section{Results and Discussion}
 
-The results are reported in the order required by the paper's security argument. We first establish poisoning robustness and clean-accuracy trade-offs, then test stronger extension baselines and coordinated poisoning, then examine malicious-ratio and coefficient sensitivity, then isolate the proposed components through ablation, and finally evaluate whether the recorded decisions are auditable and protected against unilateral aggregator tampering under the validator-threshold assumption. The claim-to-evidence mapping is explicit: Figures~\ref{fig:fashion-iid}--\ref{fig:proposed-norm-asr} and Supplementary Table S1 evaluate competitive robustness, Table~\ref{tab:collusive-extension} evaluates coordinated poisoning, Supplementary Table S2 evaluates coefficient sensitivity, Table~\ref{tab:ablation} tests component necessity, Tables~\ref{tab:audit-metrics}--\ref{tab:audit-multirun} evaluate decision reconstruction and traceability, Tables~\ref{tab:validator-tamper}--\ref{tab:validator-accountability} evaluate threshold-finality security boundaries, and Tables~\ref{tab:validator-scalability}--\ref{tab:network-events} evaluate protocol-layer scalability, network-latency sensitivity, and event-driven finality behavior.
+The results are reported in the order required by the paper's security argument. We first establish poisoning robustness and clean-accuracy trade-offs, then test stronger extension baselines and coordinated poisoning, then isolate the proposed components through ablation, and finally evaluate whether recorded decisions are auditable and protected against unilateral aggregator tampering under the validator-threshold assumption. Auxiliary malicious-ratio, coefficient, runtime-overhead, and latency details are reported in the supplementary material so that the main text follows the central logic chain rather than treating every diagnostic check as a separate contribution. The claim-to-evidence mapping is explicit: Figures~\ref{fig:fashion-iid}--\ref{fig:proposed-norm-asr} and Supplementary Table S1 evaluate competitive robustness, Table~\ref{tab:collusive-extension} evaluates coordinated poisoning, Table~\ref{tab:ablation} tests component necessity, Tables~\ref{tab:audit-metrics}--\ref{tab:audit-multirun} evaluate decision reconstruction and traceability, Tables~\ref{tab:validator-tamper}--\ref{tab:validator-accountability} evaluate threshold-finality security boundaries, and Tables~\ref{tab:protocol-cost}, \ref{tab:validator-scalability}, and \ref{tab:network-events} evaluate protocol-layer cost, scalability, and event-driven finality behavior.
 
 \begin{table}[t]
 \centering
@@ -337,9 +337,9 @@ Claim & Primary evidence & Scope boundary \\
 \midrule
 Competitive robustness under poisoning & Figures~\ref{fig:fashion-iid}--\ref{fig:proposed-norm-asr}, Supplementary Table S1 & Competitive, not accuracy-dominant in every setting \\
 Coordinated-poisoning robustness & Table~\ref{tab:collusive-extension}, Table~\ref{tab:ablation} & Evaluated on Fashion-MNIST Non-IID collusive direction \\
-Decision traceability & Tables~\ref{tab:audit-metrics}--\ref{tab:audit-multirun}, Figures~\ref{fig:audit-round}--\ref{fig:audit-clients} & Reconstructs recorded decisions, not perfect malicious-client detection \\
+Decision traceability & Tables~\ref{tab:audit-metrics}--\ref{tab:audit-multirun}, Supplementary Figures S2--S3 & Reconstructs recorded decisions, not perfect malicious-client detection \\
 Aggregator-tamper resistance & Tables~\ref{tab:validator-tamper}--\ref{tab:validator-accountability} & Holds below the validator signing threshold \\
-Protocol integration cost and finality behavior & Tables~\ref{tab:protocol-cost}--\ref{tab:network-events} & Measures validity-check cost and application-layer finality outcomes, not full BFT network throughput \\
+Protocol integration cost and finality behavior & Tables~\ref{tab:protocol-cost}, \ref{tab:validator-scalability}, and \ref{tab:network-events}; Supplementary Tables S5--S6 & Measures validity-check cost and application-layer finality outcomes, not full BFT network throughput \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -410,20 +410,9 @@ Proposed & 82.68 $\pm$ 2.26 & 84.46 & 2.02 $\pm$ 1.10 & 0.4558 \\
 \end{tabular}}
 \end{table}
 
-\subsection{Malicious-Ratio Sensitivity}
+\subsection{Auxiliary Sensitivity Checks}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\linewidth]{malicious_ratio_sensitivity.pdf}
-\caption{Malicious-ratio sensitivity on Fashion-MNIST Non-IID adaptive scaling. Curves report three-seed means; higher accuracy and lower ASR are better.}
-\label{fig:ratio}
-\end{figure}
-
-The malicious-ratio sensitivity experiment uses Fashion-MNIST Non-IID adaptive scaling with malicious ratios of 10\%, 20\%, and 40\%. Proposed, Trimmed Mean, and norm filtering all remain stable with no early stopping. The proposed method maintains approximately 85.0--85.2\% clean accuracy and about 2.0\% ASR across all three ratios. Trimmed Mean has the best average clean accuracy in this setting, while norm filtering improves as the malicious ratio increases. The results indicate stability under increasing malicious participation without supporting universal superiority.
-
-\subsection{Coefficient Sensitivity}
-
-Supplementary Table S2 evaluates whether the proposed method depends on the exact anomaly-score coefficients in Eq. (4). The experiment uses Fashion-MNIST Non-IID under sign-flip and adaptive-scaling attacks with three seeds and five coefficient variants. All variants complete without early stopping. Under sign flipping, mean clean accuracy remains in the narrow range of 84.01--84.78\%, with ASR about 2.05--2.46\%. Under adaptive scaling, the default, balanced, direction-heavy, and history-heavy variants remain close, with mean clean accuracy between 85.19\% and 86.30\% and ASR around 1.95--2.07\%. The norm-heavy variant is less stable under adaptive scaling, with lower mean clean accuracy and higher standard deviation. These results indicate that the proposed rule is not brittle to moderate coefficient changes, while supporting the design choice to retain directional and history signals rather than relying too heavily on update magnitude.
+The auxiliary sensitivity analyses are used to check whether the main robustness conclusions depend on one narrow operating point. Supplementary Figure S1 reports Fashion-MNIST Non-IID adaptive-scaling results at malicious ratios of 10\%, 20\%, and 40\%. Proposed, Trimmed Mean, and norm filtering all remain stable with no early stopping; the proposed method maintains approximately 85.0--85.2\% clean accuracy and about 2.0\% ASR across the three ratios, while Trimmed Mean has the best average clean accuracy in this particular setting. Supplementary Table S2 evaluates anomaly-score coefficient variants under sign-flip and adaptive-scaling attacks. All variants complete without early stopping, and most remain close to the default configuration. Supplementary Table S7 further varies the malicious ratio under collusive-direction poisoning. Proposed remains competitive at 10\% and is the strongest method at 20\%, but all evaluated methods collapse near random accuracy at 40\%, which identifies a high-adversary-fraction boundary rather than a universal robustness claim. These checks support stability under representative parameter and adversary-strength shifts, but they are reported as diagnostic evidence rather than as independent contributions.
 
 \subsection{Ablation Study}
 
@@ -498,19 +487,7 @@ All proposed runs & 39 / 3600 / 36000 & 100.00 $\pm$ 0.00\% & 100.00 $\pm$ 0.00\
 \end{tabular}}
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\linewidth]{audit_case_round_metrics.pdf}
-\caption{Representative single-run audit trajectory under Fashion-MNIST Non-IID sign-flip attack with the proposed method (seed 42). The figure shows clean accuracy, ASR, zero-weight rate, hard-rejection rate, and mean aggregation weight over 80 rounds. Because this figure visualizes one audit case rather than a multi-seed average, standard-deviation bands are not shown.}
-\label{fig:audit-round}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\linewidth]{audit_case_client_weights.pdf}
-\caption{Per-client aggregation weights in the same single-run audit case (seed 42). Malicious clients receive zero weight across all rounds, while benign clients retain nonzero contribution weights.}
-\label{fig:audit-clients}
-\end{figure}
+Supplementary Figures S2--S3 provide the corresponding single-run trajectory and per-client weight visualization for the representative audit case. They are placed in the supplementary material because the main claim is supported by the objective reconstruction and tamper-detection metrics in Tables~\ref{tab:audit-metrics}--\ref{tab:audit-multirun}, while the figures serve as interpretive examples.
 
 \subsection{Validator-Backed Finality Under Aggregator Tampering}
 
@@ -602,25 +579,7 @@ Audit storage & One finalized block & Compact decision evidence and hashes, not 
 
 Table~\ref{tab:protocol-cost} summarizes the per-round communication and verification structure that would be embedded in a full networked deployment. The validator-backed audit layer adds one aggregator-to-committee proposal phase and one committee finality phase beyond ordinary server-mediated FL. The dominant transmitted object remains the client update representation or its verifiable off-chain equivalent; the finalized audit chain stores compact decision evidence and hashes rather than raw training data. The local verification work scales with the number of validators and clients because each validator recomputes the deterministic score and weight fields from the commitment-bound evidence.
 
-\begin{table}[t]
-\centering
-\caption{Runtime and audit-log overhead summary for latest formal runs. Lower runtime is better; audit-log size reports traceability storage cost.}
-\label{tab:overhead}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{llrrrr}
-\toprule
-Dataset & Method & Runs & Round time (s) & Defense time (s) & Audit log (KB) \\
-\midrule
-Fashion-MNIST & Norm Filter & 18 & 1.434 & 0.0059 & 349.28 \\
-Fashion-MNIST & Proposed & 18 & 1.788 & 0.0178 & 513.59 \\
-CIFAR-10 & Norm Filter & 9 & 18.550 & 0.0550 & 522.76 \\
-CIFAR-10 & Proposed & 9 & 18.719 & 0.0797 & 771.21 \\
-\bottomrule
-\end{tabular}
-}
-\end{table}
-
-The proposed method records more per-client information than ordinary robust aggregation baselines, so its audit log is larger. The runtime overhead is moderate in the current implementation. On Fashion-MNIST, the proposed method averages 1.788 s per round, compared with 1.434 s for norm filtering. On CIFAR-10, the proposed method averages 18.719 s per round, close to norm filtering at 18.550 s. The average defense computation time is small relative to total round time. These results indicate that, in the evaluated implementation, the main cost of the proposed approach is richer audit logging rather than a large increase in aggregation computation.
+The proposed method records more per-client information than ordinary robust aggregation baselines, so its audit log is larger, but the measured runtime overhead is moderate in the current implementation. Supplementary Table S5 reports the detailed per-round timing and audit-log sizes. On Fashion-MNIST, the proposed method averages 1.788 s per round, compared with 1.434 s for norm filtering. On CIFAR-10, the proposed method averages 18.719 s per round, close to norm filtering at 18.550 s. The average defense computation time is small relative to total round time. These results indicate that, in the evaluated implementation, the main cost of the proposed approach is richer audit logging rather than a large increase in aggregation computation.
 
 Validator verification also remains lightweight in the protocol simulation. In the recorded 10-client formal audit logs, valid proposal verification takes approximately 1.3--1.6 ms per block in the default setting with five validators and threshold three, and increasing the committee size to seven validators raises verification time to approximately 1.8--2.3 ms per block. The synthetic scalability sweep below is intentionally more demanding because it expands the number of client-evidence rows. These measurements cover local cryptographic checks, commitment verification, evidence availability checks, deterministic score/weight recomputation, proposal consistency checks, and threshold-finality simulation; they do not include real network propagation, mempool ordering, view-change, or smart-contract execution.
 
@@ -648,29 +607,7 @@ Clients & Validators & Threshold & Proposal KB & Committee KB/round & Valid veri
 }
 \end{table}
 
-Table~\ref{tab:network-latency} estimates finality latency under representative network conditions using the measured proposal sizes and validator verification times from Table~\ref{tab:validator-scalability}. The model assumes one aggregator-to-validator proposal phase and one validator-to-aggregator vote/finality phase, so estimated latency is $2\mathrm{RTT}$ plus proposal transmission time, vote-record transmission time, and local validator verification time. This is not a packet-level network simulator, but it exposes the deployment sensitivity that the local protocol measurements alone cannot show. Under a 100 Mbps link and 10 ms RTT, the estimated finality latency remains below 75 ms for the 200-client, five-validator setting. Under a slower 10 Mbps link and 50 ms RTT, the same 200-client setting rises to about 319 ms. With 200 clients, 11 validators, 10 Mbps bandwidth, and 100 ms RTT, estimated finality latency is about 462 ms. These results indicate that RTT dominates wide-area deployments, while proposal size becomes important for larger client populations and lower-bandwidth links.
-
-\begin{table}[t]
-\centering
-\caption{Estimated finality latency under representative network settings. Estimates use measured proposal sizes and verification times; lower latency is better.}
-\label{tab:network-latency}
-\resizebox{\linewidth}{!}{%
-\begin{tabular}{rrrrrrr}
-\toprule
-Clients & Validators & Bandwidth Mbps & RTT ms & Proposal KB & Verification ms & Finality ms \\
-\midrule
-10 & 5 & 100 & 10 & 12.55 & 2.05 & 23.15 \\
-100 & 5 & 100 & 10 & 112.36 & 18.04 & 47.33 \\
-200 & 5 & 100 & 10 & 223.66 & 35.13 & 73.53 \\
-100 & 5 & 10 & 50 & 112.36 & 18.04 & 210.89 \\
-200 & 5 & 10 & 50 & 223.66 & 35.13 & 319.15 \\
-100 & 11 & 100 & 10 & 112.36 & 39.25 & 68.59 \\
-100 & 11 & 10 & 50 & 112.36 & 39.25 & 232.66 \\
-200 & 11 & 10 & 100 & 223.66 & 77.82 & 462.41 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table}
+Supplementary Table S6 estimates finality latency under representative network conditions using the measured proposal sizes and validator verification times from Table~\ref{tab:validator-scalability}. The model assumes one aggregator-to-validator proposal phase and one validator-to-aggregator vote/finality phase, so estimated latency is $2\mathrm{RTT}$ plus proposal transmission time, vote-record transmission time, and local validator verification time. Under a 100 Mbps link and 10 ms RTT, the estimated finality latency remains below 75 ms for the 200-client, five-validator setting. Under a slower 10 Mbps link and 50 ms RTT, the same 200-client setting rises to about 319 ms. These results indicate that RTT dominates wide-area deployments, while proposal size becomes important for larger client populations and lower-bandwidth links.
 
 We further run an event-driven finality simulation to separate network delay from threshold behavior. Each trial simulates proposal delivery to validators, local verification, vote return, threshold finalization or rejection, and timeout under deterministic pseudo-random propagation jitter and independent validator dropout. The simulation uses the measured proposal sizes and verification costs from Table~\ref{tab:validator-scalability}; it is still a permissioned application-layer finality model rather than a full PBFT, HotStuff, or Tendermint implementation. Table~\ref{tab:network-events} shows that valid proposals finalize reliably when the committee is available, invalid proposals are rejected when enough honest validators can reach the threshold, and invalid acceptance occurs only when Byzantine signers reach the signing threshold. The 11-validator case with six Byzantine validators is informative: invalid proposals are not accepted, but the five remaining honest validators cannot reach the seven-signature rejection threshold, so the outcome is timeout rather than finalization. This makes the safety and liveness boundary more explicit than the analytical latency estimate alone.
 
@@ -704,13 +641,13 @@ The audit-finality results address the central server objection directly. Robust
 
 \section{Limitations and Future Work}
 
-The current experiments support auditable and robustly competitive aggregation, but the scope boundaries are explicit. The method is not optimized for clean accuracy alone: norm filtering is particularly strong on CIFAR-10, and Trimmed Mean performs best in the Fashion-MNIST malicious-ratio sensitivity experiment. The FLTrust and FLAME-style extensions improve baseline coverage, but they are reported under their stated assumptions rather than as definitive reimplementations of every prior defense. The coefficient study covers representative shifts, not a full hyperparameter surface. The scalability sweep expands recorded decision evidence to measure validator-side cost and is not a new 200-client utility-training study. The network-latency and event-driven finality analyses do not include packet loss, retransmission, queueing, mempool ordering, leader view changes, or complete BFT consensus networking.
+The current experiments support auditable and robustly competitive aggregation, but the scope boundaries are explicit. The method is not optimized for clean accuracy alone: norm filtering is particularly strong on CIFAR-10, and Trimmed Mean performs best in the Fashion-MNIST adaptive-scaling malicious-ratio sensitivity experiment. Under collusive-direction poisoning, the proposed method is competitive at 10\% malicious participation and strongest at 20\%, but all evaluated methods collapse near random accuracy at 40\%, indicating a high-adversary-fraction boundary rather than universal robustness. The FLTrust and FLAME-style extensions improve baseline coverage, but they are reported under their stated assumptions rather than as definitive reimplementations of every prior defense. The coefficient study covers representative shifts, not a full hyperparameter surface. The scalability sweep expands recorded decision evidence to measure validator-side cost and is not a new 200-client utility-training study. The network-latency and event-driven finality analyses do not include packet loss, retransmission, queueing, mempool ordering, leader view changes, or complete BFT consensus networking.
 
 The validator model also has security limits. A signing threshold of colluding or lazy validators can finalize invalid proposals, although their signatures provide accountability evidence. If fewer than $q$ validators are online, valid blocks cannot finalize. The current design assumes permissioned validator identities and reports slashable evidence, but does not implement permissionless Sybil resistance, on-chain slashing, stake economics, randomized committee sampling, or adaptive validator reputation. It also assumes that validators can access enough commitment-bound evidence to recompute score and weight fields; privacy-preserving robust validation under secure aggregation is outside the current implementation. Future work should improve CIFAR-10 clean accuracy without sacrificing auditability, evaluate additional defenses with official implementations, extend sensitivity analysis to larger models and thresholds, integrate privacy-preserving validity checks such as verifiable secure aggregation or zero-knowledge score verification, and embed the validity predicate into a realistic permissioned-ledger deployment.
 
 \section{Conclusion}
 
-This paper presents a permissioned validator-backed auditable robust aggregation framework for secure networked federated learning services under poisoning attacks and aggregator-side tampering. The framework combines multi-signal anomaly scoring, reputation-aware weighting, client commitments, rotating aggregator proposals, and threshold validator finality. It makes aggregation decisions reconstructable while preventing a single aggregator from unilaterally finalizing manipulated audit evidence under explicit committee assumptions. The experiments show that the method avoids the FedAvg failure modes observed in the attacked settings, maintains low ASR, remains competitive with strong filtering baselines in the evaluated settings, and is stable under the collusive-direction poisoning stress test. FLTrust and FLAME-style extensions clarify how the proposed method compares with trusted-root and backdoor-specific defenses, while ablations show that direction scoring and hard rejection are important under coordinated poisoning. Protocol-level experiments show that tested invalid proposals are rejected under the validator-threshold assumption, invalid-signing validators are identifiable, liveness depends on sufficient validator availability, and event-driven finality outcomes follow the stated threshold boundary. The contribution should therefore be understood as auditable and competitive robust aggregation with explicit validator-backed security boundaries rather than universal clean-accuracy dominance or a complete production blockchain deployment.
+This paper presents a permissioned validator-backed auditable robust aggregation framework for secure networked federated learning services under poisoning attacks and aggregator-side tampering. The framework combines multi-signal anomaly scoring, reputation-aware weighting, client commitments, rotating aggregator proposals, and threshold validator finality. It makes aggregation decisions reconstructable while preventing a single aggregator from unilaterally finalizing manipulated audit evidence under explicit committee assumptions. The experiments show that the method avoids the FedAvg failure modes observed in the attacked settings, maintains low ASR, and remains competitive with strong filtering baselines in the evaluated settings. FLTrust and FLAME-style extensions clarify how the proposed method compares with trusted-root and backdoor-specific defenses, while collusive-direction and ablation results show that direction scoring and hard rejection are important under coordinated poisoning and that very high malicious participation remains a boundary case. Protocol-level experiments show that tested invalid proposals are rejected under the validator-threshold assumption, invalid-signing validators are identifiable, liveness depends on sufficient validator availability, and event-driven finality outcomes follow the stated threshold boundary. The contribution should therefore be understood as auditable and competitive robust aggregation with explicit validator-backed security boundaries rather than universal clean-accuracy dominance or a complete production blockchain deployment.
 
 \section{Declarations}
 

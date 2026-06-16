@@ -7,11 +7,12 @@
 \usepackage{array}
 \usepackage{url}
 \emergencystretch=2em
+\graphicspath{{../results/paper_figures/}{../results/audit_case/fashion_noniid_signflip_proposed_s42/}}
 
 \begin{document}
 
 \begin{center}
-{\Large Supplementary Tables}\\[0.5em]
+{\Large Supplementary Material}\\[0.5em]
 {\large Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning}\\[0.5em]
 Shiqi Huang
 \end{center}
@@ -69,6 +70,33 @@ Fashion-MNIST & Yes & Backdoor & Proposed & 88.33 & 0.30 & 1.52 & 0.31 \\
 \bottomrule
 \end{tabular}}
 \end{table}
+
+\clearpage
+\section*{Supplementary Figure S1. Malicious-ratio sensitivity}
+
+Figure S1 reports the auxiliary malicious-ratio sensitivity experiment on Fashion-MNIST Non-IID adaptive scaling. The figure is included as diagnostic evidence for robustness under increasing malicious participation; the main manuscript summarizes the result without treating it as a separate contribution.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.92\linewidth]{malicious_ratio_sensitivity.pdf}
+\caption*{S1. Malicious-ratio sensitivity on Fashion-MNIST Non-IID adaptive scaling. Curves report three-seed means; higher accuracy and lower ASR are better.}
+\end{figure}
+
+\section*{Supplementary Figures S2--S3. Representative audit-case visualizations}
+
+Figures S2--S3 visualize the representative Fashion-MNIST Non-IID sign-flip audit case with the proposed method and seed 42. They complement the objective audit metrics in the main manuscript by showing the per-round trajectory and per-client weight assignment.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.92\linewidth]{audit_case_round_metrics.pdf}
+\caption*{S2. Representative single-run audit trajectory. The figure shows clean accuracy, ASR, zero-weight rate, hard-rejection rate, and mean aggregation weight over 80 rounds.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.92\linewidth]{audit_case_client_weights.pdf}
+\caption*{S3. Per-client aggregation weights in the representative audit case. Malicious clients receive zero weight across all rounds, while benign clients retain nonzero contribution weights.}
+\end{figure}
 
 \clearpage
 \section*{Supplementary Table S2. Coefficient sensitivity}
@@ -152,5 +180,81 @@ Vote size & $\max(256,\ S_f/q)$ bytes & Per-validator vote-return size, where $S
 \end{table}
 
 For a valid proposal, each online non-Byzantine validator returns an accepting vote after proposal transmission, propagation delay, local verification, and vote transmission. For an invalid proposal, honest validators return rejecting votes and Byzantine validators return accepting votes. A proposal finalizes when accepting votes reach the threshold $q$ before timeout. An invalid proposal is rejected when rejecting votes reach $q$ before timeout. If neither side reaches $q$, the outcome is timeout. This rule is why a setting such as 11 validators with threshold 7 and six Byzantine validators can time out on an invalid proposal: six Byzantine accept votes are below threshold, while the five remaining honest reject votes are also below threshold.
+
+\clearpage
+\section*{Supplementary Table S5. Runtime and audit-log overhead}
+
+Table S5 reports the detailed runtime and audit-log overhead summarized in the main manuscript. Lower runtime is better; audit-log size reports the storage cost of keeping reconstructable decision evidence.
+
+\begin{table}[h]
+\centering
+\caption*{S5. Runtime and audit-log overhead summary for latest formal runs.}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & Method & Runs & Round time (s) & Defense time (s) & Audit log (KB) \\
+\midrule
+Fashion-MNIST & Norm Filter & 18 & 1.434 & 0.0059 & 349.28 \\
+Fashion-MNIST & Proposed & 18 & 1.788 & 0.0178 & 513.59 \\
+CIFAR-10 & Norm Filter & 9 & 18.550 & 0.0550 & 522.76 \\
+CIFAR-10 & Proposed & 9 & 18.719 & 0.0797 & 771.21 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section*{Supplementary Table S6. Estimated finality latency}
+
+Table S6 estimates finality latency under representative network settings using measured proposal sizes and validator-verification times. The estimate is an application-layer model, not a packet-level network simulator.
+
+\begin{table}[h]
+\centering
+\caption*{S6. Estimated finality latency under representative network settings.}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rrrrrrr}
+\toprule
+Clients & Validators & Bandwidth Mbps & RTT ms & Proposal KB & Verification ms & Finality ms \\
+\midrule
+10 & 5 & 100 & 10 & 12.55 & 2.05 & 23.15 \\
+100 & 5 & 100 & 10 & 112.36 & 18.04 & 47.33 \\
+200 & 5 & 100 & 10 & 223.66 & 35.13 & 73.53 \\
+100 & 5 & 10 & 50 & 112.36 & 18.04 & 210.89 \\
+200 & 5 & 10 & 50 & 223.66 & 35.13 & 319.15 \\
+100 & 11 & 100 & 10 & 112.36 & 39.25 & 68.59 \\
+100 & 11 & 10 & 50 & 112.36 & 39.25 & 232.66 \\
+200 & 11 & 10 & 100 & 223.66 & 77.82 & 462.41 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\clearpage
+\section*{Supplementary Table S7. Collusive-direction malicious-ratio sensitivity}
+
+Table S7 reports the auxiliary malicious-ratio sensitivity experiment under collusive-direction poisoning on Fashion-MNIST Non-IID. The result is used to identify the operating boundary of the defense under coordinated attackers. Proposed remains competitive at 10\% malicious participation and has the best mean clean accuracy at 20\%, but all evaluated methods collapse near random accuracy at 40\%. This boundary result is reported in the supplementary material because it qualifies the robustness claim rather than forming the main contribution.
+
+\begin{table}[h]
+\centering
+\caption*{S7. Collusive-direction malicious-ratio sensitivity on Fashion-MNIST Non-IID. Values are mean $\pm$ standard deviation over three seeds; higher clean accuracy and lower ASR/loss are better.}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{rllrrrr}
+\toprule
+Malicious ratio & Method & Runs & Clean acc. & Best acc. & ASR & Loss \\
+\midrule
+0.1 & FedAvg & 3 & 84.38 $\pm$ 2.63 & 84.39 & 2.83 $\pm$ 0.46 & 0.4060 \\
+0.1 & Norm Filter & 3 & 69.67 $\pm$ 7.83 & 69.82 & 1.59 $\pm$ 1.39 & 0.8857 \\
+0.1 & Proposed & 3 & 82.44 $\pm$ 3.12 & 82.66 & 2.17 $\pm$ 1.04 & 0.4589 \\
+0.1 & Trimmed Mean & 3 & 83.07 $\pm$ 2.79 & 83.16 & 2.66 $\pm$ 0.76 & 0.4377 \\
+\midrule
+0.2 & FedAvg & 3 & 76.40 $\pm$ 7.84 & 76.40 & 2.79 $\pm$ 0.15 & 0.6711 \\
+0.2 & Norm Filter & 3 & 60.45 $\pm$ 4.70 & 63.42 & 1.95 $\pm$ 3.08 & 3.1285 \\
+0.2 & Proposed & 3 & 83.00 $\pm$ 2.50 & 84.63 & 1.79 $\pm$ 0.78 & 0.4527 \\
+0.2 & Trimmed Mean & 3 & 76.37 $\pm$ 0.39 & 76.59 & 2.37 $\pm$ 1.75 & 0.5569 \\
+\midrule
+0.4 & FedAvg & 3 & 24.87 $\pm$ 25.70 & 40.30 & 0.39 $\pm$ 0.68 & 358.5324 \\
+0.4 & Norm Filter & 3 & 10.01 $\pm$ 0.01 & 31.35 & 0.00 $\pm$ 0.00 & 834.9249 \\
+0.4 & Proposed & 3 & 10.00 $\pm$ 0.00 & 16.98 & 0.00 $\pm$ 0.00 & 2024.6780 \\
+0.4 & Trimmed Mean & 3 & 18.55 $\pm$ 14.80 & 19.11 & 0.10 $\pm$ 0.18 & 47.9982 \\
+\bottomrule
+\end{tabular}}
+\end{table}
 
 \end{document}
