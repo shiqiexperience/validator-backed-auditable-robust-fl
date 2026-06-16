@@ -1,10 +1,10 @@
-# Validator-Backed Auditable Robust Federated Learning
+# Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning
 
-This repository is a cleaned reproducibility package for the manuscript:
+This repository is the cleaned reproducibility package for the manuscript:
 
 **Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning**
 
-The package contains the paper-specific implementation, experiment configurations, result summaries, figures, validator-audit artifacts, and audit-case artifacts. It intentionally excludes legacy exploratory scripts and local machine artifacts from the original development folder.
+The package contains the paper-specific implementation, experiment configurations, result summaries, figures, validator-audit artifacts, event-driven finality outputs, and audit-case excerpts. It intentionally excludes legacy exploratory scripts, full raw run directories, and local machine artifacts from the original development folder.
 
 The implementation models a permissioned validator-backed audit layer for federated learning. It is intended to evaluate verifiable aggregation decisions, tamper detection, accountability, finality costs, and robustness under poisoning attacks. It is not a production peer-to-peer blockchain implementation.
 
