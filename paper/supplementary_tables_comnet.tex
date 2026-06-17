@@ -1,6 +1,7 @@
 \documentclass[12pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{booktabs}
+\usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{longtable}
 \usepackage{caption}
@@ -253,6 +254,31 @@ Malicious ratio & Method & Runs & Clean acc. & Best acc. & ASR & Loss \\
 0.4 & Norm Filter & 3 & 10.01 $\pm$ 0.01 & 31.35 & 0.00 $\pm$ 0.00 & 834.9249 \\
 0.4 & Proposed & 3 & 10.00 $\pm$ 0.00 & 16.98 & 0.00 $\pm$ 0.00 & 2024.6780 \\
 0.4 & Trimmed Mean & 3 & 18.55 $\pm$ 14.80 & 19.11 & 0.10 $\pm$ 0.18 & 47.9982 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\clearpage
+\section*{Supplementary Table S8. Committee-capture probability under random validator sampling}
+
+Table S8 reports a simple committee-capture calculation for the threshold-finality assumption. Let $\rho$ be the adversarial fraction in a permissioned validator candidate pool. If a committee of size $m$ is sampled independently from that pool and a proposal finalizes with threshold $q$, the probability that the sampled committee contains at least $q$ adversarial validators is
+\[
+P_{\mathrm{capture}}=\sum_{k=q}^{m}\binom{m}{k}\rho^k(1-\rho)^{m-k}.
+\]
+This calculation is not a replacement for validator governance, Sybil resistance, or stake economics. It is included to make the security-performance trade-off explicit: larger committees and higher thresholds reduce threshold-capture probability under random sampling, but they increase proposal dissemination and vote-collection cost.
+
+\begin{table}[h]
+\centering
+\caption*{S8. Probability that adversarial validators reach the signing threshold under random committee sampling. Values are percentages.}
+\resizebox{0.82\linewidth}{!}{%
+\begin{tabular}{rrrr}
+\toprule
+Adversarial pool fraction $\rho$ & $(m,q)=(5,3)$ & $(m,q)=(7,5)$ & $(m,q)=(11,7)$ \\
+\midrule
+0.10 & 0.856\% & 0.018\% & 0.002\% \\
+0.20 & 5.792\% & 0.467\% & 0.197\% \\
+0.30 & 16.308\% & 2.880\% & 2.162\% \\
+0.40 & 31.744\% & 9.626\% & 9.935\% \\
 \bottomrule
 \end{tabular}}
 \end{table}
