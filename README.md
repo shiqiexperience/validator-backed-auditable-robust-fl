@@ -1,8 +1,8 @@
-# Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning
+# Validator-Backed Auditable Robust Aggregation for Trustworthy Federated Learning
 
 This repository is the cleaned reproducibility package for the manuscript:
 
-**Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning**
+**Validator-Backed Auditable Robust Aggregation for Trustworthy Federated Learning**
 
 The package contains the paper-specific implementation, experiment configurations, result summaries, figures, validator-audit artifacts, event-driven finality outputs, and audit-case excerpts. It intentionally excludes legacy exploratory scripts, full raw run directories, and local machine artifacts from the original development folder.
 
@@ -89,17 +89,17 @@ The released manuscript source is configured to use the figures and audit-case p
 
 ```powershell
 cd paper
-pdflatex -interaction=nonstopmode -halt-on-error manuscript_comnet.tex
-bibtex manuscript_comnet
-pdflatex -interaction=nonstopmode -halt-on-error manuscript_comnet.tex
-pdflatex -interaction=nonstopmode -halt-on-error manuscript_comnet.tex
+pdflatex -interaction=nonstopmode -halt-on-error manuscript_neurocomputing.tex
+bibtex manuscript_neurocomputing
+pdflatex -interaction=nonstopmode -halt-on-error manuscript_neurocomputing.tex
+pdflatex -interaction=nonstopmode -halt-on-error manuscript_neurocomputing.tex
 ```
 
 The supplementary tables can be compiled separately from the same `paper/` directory:
 
 ```powershell
-pdflatex -interaction=nonstopmode -halt-on-error supplementary_tables_comnet.tex
-pdflatex -interaction=nonstopmode -halt-on-error supplementary_tables_comnet.tex
+pdflatex -interaction=nonstopmode -halt-on-error supplementary_tables_neurocomputing.tex
+pdflatex -interaction=nonstopmode -halt-on-error supplementary_tables_neurocomputing.tex
 ```
 
 ## Data

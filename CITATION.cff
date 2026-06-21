@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite the associated manuscript."
-title: "Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning"
+title: "Validator-Backed Auditable Robust Aggregation for Trustworthy Federated Learning"
 authors:
   - family-names: Huang
     given-names: Shiqi
 repository-code: "https://github.com/shiqiexperience/hashchain-auditable-robust-fl"
-date-released: "2026-06-15"
-version: "pre-submission-comnet"
+date-released: "2026-06-21"
+version: "v0.2-neurocomputing"
