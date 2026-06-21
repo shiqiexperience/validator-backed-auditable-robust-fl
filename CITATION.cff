@@ -4,6 +4,6 @@ title: "Validator-Backed Auditable Robust Aggregation for Trustworthy Federated 
 authors:
   - family-names: Huang
     given-names: Shiqi
-repository-code: "https://github.com/shiqiexperience/hashchain-auditable-robust-fl"
+repository-code: "https://github.com/shiqiexperience/validator-backed-auditable-robust-fl"
 date-released: "2026-06-21"
-version: "v0.2-neurocomputing"
+version: "v0.3-neurocomputing"

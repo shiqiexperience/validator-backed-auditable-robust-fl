@@ -4,7 +4,7 @@ Date: 2026-06-15
 
 This note records the consistency checks performed for the reproducibility package of:
 
-`Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning`
+`Validator-Backed Auditable Robust Aggregation for Trustworthy Federated Learning`
 
 ## Scope
 

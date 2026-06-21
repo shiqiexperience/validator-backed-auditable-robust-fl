@@ -10,7 +10,7 @@ The current project contains early exploratory code, smoke tests, tuning attempt
 
 Suggested repository name:
 
-`hashchain-auditable-robust-fl`
+`validator-backed-auditable-robust-fl`
 
 Detailed include/exclude rules are maintained in `docs/reproducibility_release_manifest.md`.
 

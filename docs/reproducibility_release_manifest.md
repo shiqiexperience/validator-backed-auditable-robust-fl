@@ -4,11 +4,11 @@ This manifest defines the recommended contents of a cleaned paper-specific repos
 
 Recommended repository name:
 
-`hashchain-auditable-robust-fl`
+`validator-backed-auditable-robust-fl`
 
 Current manuscript title:
 
-`Validator-Backed Auditable Robust Aggregation for Secure Networked Federated Learning`
+`Validator-Backed Auditable Robust Aggregation for Trustworthy Federated Learning`
 
 ## Include: Core Code
 
