@@ -9,3 +9,5 @@ Compared with the previous package metadata, this release updates the repository
 `validator-backed-auditable-robust-fl`
 
 The renamed repository better reflects the manuscript's current contribution: validator-backed auditability and robust aggregation for trustworthy federated learning.
+
+Archived release DOI: https://doi.org/10.5281/zenodo.20790584

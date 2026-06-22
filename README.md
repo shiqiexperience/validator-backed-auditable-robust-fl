@@ -8,6 +8,8 @@ The package contains the paper-specific implementation, experiment configuration
 
 The implementation models a permissioned validator-backed audit layer for federated learning. It is intended to evaluate verifiable aggregation decisions, tamper detection, accountability, finality costs, and robustness under poisoning attacks. It is not a production peer-to-peer blockchain implementation.
 
+Archived release DOI: https://doi.org/10.5281/zenodo.20790584
+
 ## Contents
 
 | Path | Description |
